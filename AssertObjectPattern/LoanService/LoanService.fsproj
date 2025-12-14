@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="Models.fs" />
     <Compile Include="LoanOrderService.fs" />
+    <Compile Include="AgeVerificationService.fs" />
   </ItemGroup>
 
 </Project>
