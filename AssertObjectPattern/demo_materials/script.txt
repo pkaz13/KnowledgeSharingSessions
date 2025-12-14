@@ -1,0 +1,35 @@
+MG: Pokazałaś nam asercje, które są mocno techniczne – np. weryfikujemy, czy na
+danym kliencie jest dane pole. Czy moglibyśmy napisać asercje bardziej biznesowe,
+czyli np.: „czy pożyczka dotyczy studenta”?
+
+OMS: Jasne! Dobrym pomysłem będzie wtedy zastosowanie wzorca AssertObject .
+Zobaczymy, jak to działa na przykładzie kodu [04:32]. Spójrzmy na pierwszy test:
+weryfikujemy, czy jesteśmy w stanie utworzyć poprawne zamówienie na pożyczkę dla
+studenta. Jak widzimy, mamy tutaj pełno asercji. Wyobraźmy sobie, że pokażemy te
+asercje komuś z biznesu. Czy będzie on w stanie zrozumieć, o co tu chodzi? Jak
+sądzisz?
+
+MG: To może być problem. Jeżeli weryfikujemy, czy ten LoanOrder dotyczy studenta,
+no to co biznes obchodzi, że order date jest równe aktualnej dacie. To nie ten poziom
+abstrakcji, który by go interesował.
+
+OMS: Co z tym zrobić? Możemy opakować techniczne asercje w asercje mające sens
+biznesowy. Przykładem takiego wrappera jest klasa LoanOrderAssert, w której asercje
+techniczne (tutaj pisane z wykorzystaniem AssertJ) pakujemy w metody mające nazwy
+sensowne z punktu widzenia biznesowego. Dodatkowo zwracamy cały czas ten obiekt
+po to, żeby móc ze sobą te metody chainować. Co uzyskujemy? Zamiast takiego testu,
+mamy teraz taki [05:50]. Nadal jest tu sporo asercji. W zasadzie mogłoby być ich mniej,
+ale chcieliśmy pokazać więcej zastosowań metod ze wzorca AssertObject. Niemniej
+teraz łatwo można wytłumaczyć komuś z biznesu, testerowi czy analitykowi, o co nam
+chodzi w tym teście i co weryfikujemy. Dodatkowo nawet dla naszych kolegów z
+zespołu będzie po prostu znacznie łatwiej szybko rzucić okiem i zobaczyć, o jaką
+operację nam chodzi, niż wczytywać się po kolei w te asercje.
+Tutaj mamy podobny przykład [06:26], tylko tym razem używamy schainowanych asercji
+ze wzorca AssertObject.
+Może też być tak, że nie będziemy chcieli mieć tak szczegółowych asercji jak w tym
+teście. Nie będziemy chcieli listować po kolei, co się dzieje w naszym procesie. Często
+wystarczy mieć jedną asercję, w której np. weryfikujemy, czy zostało utworzone
+poprawne zamówienie na kredyt dla studenta. Tak naprawdę metoda ta będzie już
+zawierała w sobie pozostałe asercje, a test będzie przez to bardziej czytelny.
+Zobaczmy, czy to działa. Test przeszedł. Oznacza to, że zweryfikowaliśmy, czy proces
+zamówienia pożyczki dla studenta przebiegł poprawnie.
