@@ -5,5 +5,4 @@ open NodaTime
 [<AutoOpen>]
 module PeriodExtensions =
     type System.Int32 with
-        member this.Years() =
-            Period.FromYears(this)
+        member this.Years() = Period.FromYears(this)
