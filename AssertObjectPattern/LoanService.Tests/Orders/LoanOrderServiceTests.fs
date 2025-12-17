@@ -4,68 +4,78 @@ open System
 open LoanService
 open LoanService.Models.Customers
 open LoanService.Models.Orders
-open Shouldly
+open FsUnit.Xunit
+open FsUnit.CustomMatchers
 open Xunit
 
-let aStudent () =
-    let person: Person =
-        { Name = "Piotr"
-          Surname = "Kazmierczak"
-          DateOfBirth = DateTime(1995, 1, 1) |> Some
-          Gender = Male
-          NationalIdentificationNumber = "1234567890"
-          Status = Student }
 
-    let customer: Customer = { Id = Guid.NewGuid(); Person = person }
+type ``Creation of student loan order`` () = 
 
-    customer
+    let aStudent () =
+        let person: Person =
+            { Name = "Piotr"
+              Surname = "Kazmierczak"
+              DateOfBirth = DateTime(1995, 1, 1) |> Some
+              Gender = Male
+              NationalIdentificationNumber = "1234567890"
+              Status = Student }
+
+        let customer: Customer = { Id = Guid.NewGuid(); Person = person }
+
+        customer
+        
+    [<Fact>]
+    let ``succeeds if registered today`` () =
+        
+        aStudent ()
+        |> LoanOrderService.studentLoadOrder
+        |> Result.map (fun lo -> lo.OrderDate |> should equal DateTime.Today)
+        |> Result.mapError (fun errMsg ->
+            Assert.Fail($"Expected successful loan order creation but got error: {errMsg}")
+        )
+
+    [<Fact>]
+    let ``succeeds if has a promotion`` () =
+        
+        aStudent ()
+        |> LoanOrderService.studentLoadOrder
+        |> Result.map (fun lo ->
+            lo.Promotions
+            |> List.map _.Name            
+            |> should contain "Student Loan Promotion")
+        |> Result.mapError (fun errMsg ->
+            // is not expected to happen
+            Assert.Fail($"Expected successful loan order creation but got error: {errMsg}")
+        )
+            
+    [<Fact>]
+    let ``succeeds if has promotion is 10.0M`` () =
+        let discount = 10.0M
+        aStudent ()
+        |> LoanOrderService.studentLoadOrder
+        |> Result.map (fun lo ->
+            lo.Promotions
+            |> List.head
+            |> (fun d -> d.Discount |> should equal discount))
+        |> Result.mapError (fun errMsg ->
+            // is not expected to happen
+            Assert.Fail($"Expected successful loan order creation but got error: {errMsg}")
+        )
+
+    [<Theory>]
+    [<InlineData(9.0)>]
+    [<InlineData(11.0)>]
+    let ``fails if promotion is below or above 10.0M`` (discount) =
+        
+        aStudent ()
+        |> LoanOrderService.studentLoadOrder
+        |> Result.map (fun lo ->
+            lo.Promotions
+            |> List.head
+            |> (fun d -> d.Discount = discount |> should be False))
+        |> Result.mapError (fun errMsg ->
+            // is not expected to happen
+            Assert.Fail($"Expected successful loan order creation but got error: {errMsg}")
+        )
 
 
-[<Fact>]
-let ``Should create student loan order`` () =
-    let student = aStudent ()
-
-    let loanOrder = LoanOrderService.studentLoadOrder student
-
-    match loanOrder with
-    | Error errMsg -> Assert.Fail($"Expected successful loan order creation but got error: {errMsg}")
-    | Ok loanOrder ->
-        loanOrder.OrderDate.ShouldBe(DateTime.Today)
-        loanOrder.Promotions.ShouldContain(fun p -> p.Name = "Student Loan Promotion")
-        loanOrder.Promotions[0].Discount.ShouldBe 10.00M
-
-[<Fact>]
-let ``Should create student loan order using assert object`` () =
-    let student = aStudent ()
-
-    let loanOrder = LoanOrderService.studentLoadOrder student
-
-    let orderShould = LoanOrderAssert(loanOrder)
-    orderShould.BeRegisteredToday() |> ignore
-    orderShould.HavePromotion("Student Loan Promotion") |> ignore
-    orderShould.HaveOnFirstPromotionDiscountValueOf(10.00M) |> ignore
-    orderShould.HaveOnlyOnePromotion() |> ignore
-
-[<Fact>]
-let ``Should create student loan order using chained assert object`` () =
-    let student = aStudent ()
-
-    let loanOrder = LoanOrderService.studentLoadOrder student
-
-    let orderShould = LoanOrderAssert(loanOrder)
-
-    orderShould
-        .BeRegisteredToday()
-        .HavePromotion("Student Loan Promotion")
-        .HaveOnFirstPromotionDiscountValueOf(10.00M)
-        .HaveOnlyOnePromotion()
-    |> ignore
-
-[<Fact>]
-let ``Should create correct student loan order using simple assertion`` () =
-    let student = aStudent ()
-
-    let loanOrder = LoanOrderService.studentLoadOrder student
-
-    let orderShould = LoanOrderAssert(loanOrder)
-    orderShould.BeCorrect() |> ignore

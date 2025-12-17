@@ -13,7 +13,7 @@ let studentLoadOrder (customer: Customers.Customer) =
 
         let promotion: Promotion =
             { Name = "Student Loan Promotion"
-              Discount = 10.00M }
+              Discount = 10.0M }
 
         let loanOrder: LoanOrder =
             { Customer = customer
