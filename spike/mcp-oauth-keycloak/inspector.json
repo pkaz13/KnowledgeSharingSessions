@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "spike-logistics": {
+      "type": "http",
+      "url": "http://localhost:5080/mcp",
+      "protocolEra": "auto",
+      "oauth": { "clientId": "mcp-inspector", "scopes": "mcp:tools" }
+    }
+  }
+}
