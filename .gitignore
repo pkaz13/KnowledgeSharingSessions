@@ -1,4 +1,4 @@
-# Repo-wide ignores: OS and editor files only.
+# Repo-wide ignores: OS, editor and agent tooling files only.
 # Stack-specific ignores live in each Topic's own .gitignore (see docs/adr/0001-self-contained-topics.md).
 
 ## macOS
@@ -24,3 +24,6 @@ Desktop.ini
 ## Local secrets
 .env
 *.env
+
+## Claude Code agent worktrees
+.claude/worktrees/
