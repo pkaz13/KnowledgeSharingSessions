@@ -10,10 +10,16 @@
       "lastName": "Dispatcher",
       "enabled": true,
       "emailVerified": true,
+      "realmRoles": ["offline_access"],
       "credentials": [{ "type": "password", "value": "alice", "temporary": false }]
     }
   ],
   "clientScopes": [
+    {
+      "name": "offline_access",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "true" }
+    },
     {
       "name": "mcp:tools",
       "protocol": "openid-connect",
@@ -56,7 +62,7 @@
       "webOrigins": ["+"],
       "attributes": { "pkce.code.challenge.method": "S256" },
       "defaultClientScopes": [],
-      "optionalClientScopes": ["mcp:tools"]
+      "optionalClientScopes": ["mcp:tools", "offline_access"]
     },
     {
       "clientId": "mcp-inspector",
@@ -65,11 +71,11 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:6274/oauth/callback", "http://127.0.0.1:6276/oauth/callback"],
-      "webOrigins": ["http://localhost:6274"],
+      "redirectUris": ["http://localhost:6274/oauth/callback", "http://127.0.0.1:6274/oauth/callback", "http://127.0.0.1:6276/oauth/callback"],
+      "webOrigins": ["http://localhost:6274", "http://127.0.0.1:6274"],
       "attributes": { "pkce.code.challenge.method": "S256" },
       "defaultClientScopes": [],
-      "optionalClientScopes": ["mcp:tools"]
+      "optionalClientScopes": ["mcp:tools", "offline_access"]
     }
   ]
 }

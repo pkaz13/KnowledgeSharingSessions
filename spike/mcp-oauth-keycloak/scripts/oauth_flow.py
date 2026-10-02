@@ -8,6 +8,7 @@ import base64, hashlib, http.cookiejar, json, re, secrets, sys, urllib.error, ur
 MCP_URL = "http://localhost:5080/mcp"
 CLIENT_ID = sys.argv[1] if len(sys.argv) > 1 else "vscode"
 REDIRECT_URI = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:33418/"
+SCOPE = sys.argv[3] if len(sys.argv) > 3 else None
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -59,7 +60,7 @@ challenge_s256 = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).dige
 state = secrets.token_urlsafe(8)
 auth_url = meta["authorization_endpoint"] + "?" + urllib.parse.urlencode({
     "response_type": "code", "client_id": CLIENT_ID, "redirect_uri": REDIRECT_URI,
-    "scope": " ".join(prm["scopes_supported"]), "state": state,
+    "scope": SCOPE or " ".join(prm["scopes_supported"]), "state": state,
     "code_challenge": challenge_s256, "code_challenge_method": "S256", "resource": prm["resource"],
 })
 status, _, html = call(auth_url)
@@ -87,7 +88,7 @@ status, _, body = call(meta["token_endpoint"], urllib.parse.urlencode({
     "grant_type": "authorization_code", "client_id": CLIENT_ID, "code": code, "redirect_uri": REDIRECT_URI,
     "code_verifier": verifier, "resource": prm["resource"],
 }).encode(), {"Content-Type": "application/x-www-form-urlencoded"})
-print("6. Token:", status)
+print("6. Token:", status, "" if status == 200 else body)
 token = json.loads(body)["access_token"]
 payload = json.loads(base64.urlsafe_b64decode(token.split(".")[1] + "=="))
 print("   claims:", {k: payload.get(k) for k in ["iss", "aud", "azp", "scope", "preferred_username"]})
