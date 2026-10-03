@@ -278,3 +278,105 @@ let driverSchedule (board: DispatchBoard) (driverId: string) (from: DateTimeOffs
                   OrderId = None })
 
         Ok(dispatches @ absences |> List.sortBy _.From)
+
+/// What a Dispatcher asks for: one Driver, Tractor unit and Trailer for one Transport Order.
+type DispatchRequest =
+    { OrderId: string
+      DriverId: string
+      TractorId: string
+      TrailerId: string }
+
+/// Why a Dispatch was refused. `DispatchError.describe` turns it into readable text.
+type DispatchError =
+    | NotFound of string
+    | AlreadyDispatched of orderId: string * dispatchId: string
+    | RulesBroken of orderId: string * reasons: string list
+
+module DispatchError =
+    let describe =
+        function
+        | NotFound message -> message
+        | AlreadyDispatched(orderId, dispatchId) -> $"Order {orderId} is already dispatched ({dispatchId})"
+        | RulesBroken(orderId, reasons) ->
+            let lines = reasons |> List.map (fun r -> $"- {r}") |> String.concat "\n"
+            $"Can't dispatch {orderId}:\n{lines}"
+
+let private nextDispatchId (board: DispatchBoard) =
+    let number (id: string) =
+        match Int32.TryParse(id.Replace("DSP-", "")) with
+        | true, n -> n
+        | _ -> 0
+
+    let next = (board.Dispatches |> List.map (_.Id >> number) |> List.fold max 0) + 1
+    $"DSP-%03d{next}"
+
+let private findById what (idOf: 'a -> string) (items: 'a list) id =
+    match items |> List.tryFind (fun x -> idOf x = id) with
+    | Some x -> Ok x
+    | None -> Error(NotFound $"{what} {id} not found")
+
+/// Applies the 5 rules to the requested combination. On success returns the new Dispatch,
+/// recorded with its Dispatcher; `addDispatch` puts it on the board.
+let dispatch (board: DispatchBoard) (dispatcher: string) (request: DispatchRequest) : Result<Dispatch, DispatchError> =
+    let checkRules (order: TransportOrder) (driver: Driver) (tractor: TractorUnit) (trailer: Trailer) =
+        let prefixed label reasons =
+            reasons |> List.map (fun r -> $"{label}: {r}")
+
+        let reasons =
+            prefixed $"Driver {driver.Id} ({driver.Name})" (driverReasons board order driver)
+            @ prefixed $"Tractor unit {tractor.Id}" (tractorReasons board order tractor)
+            @ prefixed $"Trailer {trailer.Id}" (trailerReasons board order trailer)
+
+        if reasons.IsEmpty then
+            Ok
+                { Id = nextDispatchId board
+                  OrderId = order.Id
+                  DriverId = driver.Id
+                  TractorId = tractor.Id
+                  TrailerId = trailer.Id
+                  Dispatcher = dispatcher }
+        else
+            Error(RulesBroken(order.Id, reasons))
+
+    findById "Order" (fun (o: TransportOrder) -> o.Id) board.Orders request.OrderId
+    |> Result.bind (fun order ->
+        match board.Dispatches |> List.tryFind (fun d -> d.OrderId = order.Id) with
+        | Some existing -> Error(AlreadyDispatched(order.Id, existing.Id))
+        | None ->
+            match
+                findById "Driver" (fun (d: Driver) -> d.Id) board.Drivers request.DriverId,
+                findById "Tractor unit" (fun (t: TractorUnit) -> t.Id) board.Tractors request.TractorId,
+                findById "Trailer" (fun (t: Trailer) -> t.Id) board.Trailers request.TrailerId
+            with
+            | Ok driver, Ok tractor, Ok trailer -> checkRules order driver tractor trailer
+            | Error e, _, _
+            | _, Error e, _
+            | _, _, Error e -> Error e)
+
+/// One line about a Dispatch on the board, naming its Dispatcher.
+let describeDispatch (board: DispatchBoard) (d: Dispatch) =
+    let driver =
+        tryFindDriver board d.DriverId
+        |> Option.map (fun x -> $"{x.Name} ({x.Id})")
+        |> Option.defaultValue d.DriverId
+
+    let route =
+        orderOf board d.OrderId
+        |> Option.map (fun o -> $", {o.Origin} -> {o.Destination} {describeWindow o.Window}")
+        |> Option.defaultValue ""
+
+    $"Dispatched {d.OrderId} as {d.Id}: driver {driver}, tractor unit {d.TractorId}, trailer {d.TrailerId}{route}; dispatched by {d.Dispatcher}."
+
+/// Puts a Dispatch returned by `dispatch` on the board.
+let addDispatch (board: DispatchBoard) (dispatch: Dispatch) =
+    { board with
+        Dispatches = board.Dispatches @ [ dispatch ] }
+
+/// Removes a Dispatch; its order becomes open again.
+let cancelDispatch (board: DispatchBoard) (dispatchId: string) : Result<DispatchBoard, string> =
+    if board.Dispatches |> List.exists (fun d -> d.Id = dispatchId) then
+        Ok
+            { board with
+                Dispatches = board.Dispatches |> List.filter (fun d -> d.Id <> dispatchId) }
+    else
+        Error $"Dispatch {dispatchId} not found"

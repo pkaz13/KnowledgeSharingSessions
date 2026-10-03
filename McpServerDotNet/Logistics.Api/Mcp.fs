@@ -6,6 +6,8 @@ module Logistics.Api.Mcp
 open System
 open System.ComponentModel
 open System.Runtime.InteropServices
+open System.Security.Claims
+open ModelContextProtocol.Protocol
 open ModelContextProtocol.Server
 open Logistics.Api.Domain
 
@@ -60,6 +62,33 @@ module Tools =
         ([<Description("End of the range, ISO 8601 with offset, e.g. 2026-10-05T00:00:00Z.")>] ``to``: DateTimeOffset)
         : string =
         driverSchedule store.Value driverId from ``to`` |> orText
+
+    /// Mutating, so not ReadOnly: clients ask the user before calling it.
+    /// Domain errors come back as tool text (isError = true), never as a protocol error.
+    [<McpServerTool(Name = "dispatch_order", Destructive = false, Idempotent = false, OpenWorld = false)>]
+    [<Description("Dispatches a Transport Order: assigns one Driver, one Tractor unit and one Trailer for the order's whole window. "
+                  + "All dispatch rules are checked; if any is broken nothing is dispatched and the reasons are returned. "
+                  + "Use find_dispatch_options first to pick an admissible combination.")>]
+    let dispatchOrder
+        (store: Store)
+        ([<Description("Transport Order id, e.g. ORD-103.")>] orderId: string)
+        ([<Description("Driver id, e.g. D-01.")>] driverId: string)
+        ([<Description("Tractor unit id, e.g. TRK-02.")>] tractorId: string)
+        ([<Description("Trailer id, e.g. TRL-02.")>] trailerId: string)
+        ([<Optional; DefaultParameterValue(null: ClaimsPrincipal)>] user: ClaimsPrincipal)
+        : CallToolResult =
+        let request =
+            { OrderId = orderId
+              DriverId = driverId
+              TractorId = tractorId
+              TrailerId = trailerId }
+
+        let text, isError =
+            match Store.dispatch store (Dispatcher.nameOf user) request with
+            | Ok d -> describeDispatch store.Value d, false
+            | Error e -> DispatchError.describe e, true
+
+        CallToolResult(Content = ResizeArray<ContentBlock>([ TextContentBlock(Text = text) :> ContentBlock ]), IsError = isError)
 
 [<McpServerResourceType>]
 module Resources =

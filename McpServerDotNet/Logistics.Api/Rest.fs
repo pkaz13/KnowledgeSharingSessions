@@ -58,3 +58,23 @@ let mapEndpoints (app: IEndpointRouteBuilder) =
 
     app.MapGet("/dispatches", Func<Store, IResult>(fun store -> Results.Ok store.Value.Dispatches))
     |> ignore
+
+    // Domain errors as plain text: 404 for an unknown id, 409 for anything the rules refuse.
+    app.MapPost(
+        "/dispatches",
+        Func<DispatchRequest, HttpContext, Store, IResult>(fun request ctx store ->
+            match Store.dispatch store (Dispatcher.nameOf ctx.User) request with
+            | Ok d -> Results.Created($"/dispatches/{d.Id}", d)
+            | Error(NotFound _ as e) -> Results.Text(DispatchError.describe e, statusCode = 404)
+            | Error e -> Results.Text(DispatchError.describe e, statusCode = 409))
+    )
+    |> ignore
+
+    app.MapDelete(
+        "/dispatches/{id}",
+        Func<string, Store, IResult>(fun id store ->
+            match Store.cancel store id with
+            | Ok() -> Results.NoContent()
+            | Error message -> Results.Text(message, statusCode = 404))
+    )
+    |> ignore

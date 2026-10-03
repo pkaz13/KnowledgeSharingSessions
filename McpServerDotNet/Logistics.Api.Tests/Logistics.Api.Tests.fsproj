@@ -10,7 +10,9 @@
     <Compile Include="Domain/Boards.fs" />
     <Compile Include="Domain/RuleTests.fs" />
     <Compile Include="Domain/QueryTests.fs" />
+    <Compile Include="Domain/DispatchTests.fs" />
     <Compile Include="DemoScenes/SeedTests.fs" />
+    <Compile Include="DemoScenes/DispatchSceneTests.fs" />
     <Compile Include="Adapters/HealthTests.fs" />
     <Compile Include="Adapters/RestTests.fs" />
     <Compile Include="Adapters/McpTests.fs" />

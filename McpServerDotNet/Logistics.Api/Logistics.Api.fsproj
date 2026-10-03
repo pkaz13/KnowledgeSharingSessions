@@ -9,6 +9,7 @@
     <Compile Include="Seed.fs" />
     <Compile Include="Store.fs" />
     <Compile Include="Json.fs" />
+    <Compile Include="Dispatcher.fs" />
     <Compile Include="Rest.fs" />
     <Compile Include="Mcp.fs" />
     <Compile Include="Program.fs" />
