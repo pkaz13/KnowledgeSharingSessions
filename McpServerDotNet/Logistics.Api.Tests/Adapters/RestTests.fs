@@ -24,6 +24,24 @@ let ``GET /orders/{id}/dispatch-options returns 200 and JSON`` () =
     }
 
 [<Fact>]
+let ``GET /orders/{id}/dispatch-options returns 404 for an unknown order and 409 for a dispatched one`` () =
+    task {
+        use factory = new WebApplicationFactory<Logistics.Api.Program.Marker>()
+        use client = factory.CreateClient()
+        let ct = TestContext.Current.CancellationToken
+
+        let! unknown = client.GetAsync("/orders/ORD-999/dispatch-options", ct)
+        let! unknownBody = unknown.Content.ReadAsStringAsync(ct)
+        let! dispatched = client.GetAsync("/orders/ORD-099/dispatch-options", ct)
+        let! dispatchedBody = dispatched.Content.ReadAsStringAsync(ct)
+
+        test <@ unknown.StatusCode = HttpStatusCode.NotFound @>
+        test <@ unknownBody = "\"Order ORD-999 not found\"" @>
+        test <@ dispatched.StatusCode = HttpStatusCode.Conflict @>
+        test <@ dispatchedBody = "\"Order ORD-099 is already dispatched (DSP-001)\"" @>
+    }
+
+[<Fact>]
 let ``POST /dispatches dispatches, refuses a broken rule with text, and DELETE /dispatches/{id} cancels`` () =
     task {
         use factory = new WebApplicationFactory<Logistics.Api.Program.Marker>()

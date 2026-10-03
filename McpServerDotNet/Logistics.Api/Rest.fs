@@ -49,10 +49,10 @@ let mapEndpoints (app: IEndpointRouteBuilder) =
     app.MapGet(
         "/orders/{id}/dispatch-options",
         Func<string, Store, IResult>(fun id store ->
-            match tryFindOrder store.Value id, findDispatchOptions store.Value id with
-            | None, _ -> Results.NotFound $"Order {id} not found"
-            | _, Ok options -> Results.Ok options
-            | _, Error message -> Results.Conflict message)
+            match findDispatchOptions store.Value id with
+            | Ok options -> Results.Ok options
+            | Error(NotFound _ as e) -> Results.NotFound(DispatchError.describe e)
+            | Error e -> Results.Conflict(DispatchError.describe e))
     )
     |> ignore
 

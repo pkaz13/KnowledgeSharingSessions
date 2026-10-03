@@ -54,7 +54,7 @@ let board drivers tractors trailers orders dispatches =
 let optionsFor board orderId =
     match Logistics.Api.Domain.findDispatchOptions board orderId with
     | Ok options -> options
-    | Error e -> failwith e
+    | Error e -> failwith (DispatchError.describe e)
 
 let option driverId tractorId trailerId =
     { DriverId = driverId

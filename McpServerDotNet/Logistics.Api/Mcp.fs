@@ -52,7 +52,9 @@ module Tools =
         (store: Store)
         ([<Description("Transport Order id, e.g. ORD-103.")>] orderId: string)
         : string =
-        Domain.findDispatchOptions store.Value orderId |> orText
+        Domain.findDispatchOptions store.Value orderId
+        |> Result.mapError DispatchError.describe
+        |> orText
 
     [<McpServerTool(Name = "get_driver_schedule", ReadOnly = true)>]
     [<Description("Shows a driver's Dispatches and Absences (sick leave, holiday) that overlap the range from..to, earliest first.")>]
