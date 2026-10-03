@@ -10,7 +10,10 @@
   "servers": {
     "logistics": {
       "type": "http",
-      "url": "http://localhost:5080/mcp"
+      "url": "http://localhost:5080/mcp",
+      "oauth": {
+        "clientId": "vscode"
+      }
     },
     "logistics-api-key": {
       "type": "http",

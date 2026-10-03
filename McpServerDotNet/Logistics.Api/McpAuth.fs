@@ -7,7 +7,12 @@ open System.Security.Cryptography
 open System.Text
 open System.Text.Encodings.Web
 open Microsoft.AspNetCore.Authentication
+open Microsoft.AspNetCore.Authentication.JwtBearer
+open Microsoft.AspNetCore.Authorization
 open Microsoft.AspNetCore.Builder
+open Microsoft.IdentityModel.Tokens
+open ModelContextProtocol.AspNetCore.Authentication
+open ModelContextProtocol.Authentication
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
@@ -28,10 +33,6 @@ let modeOf (config: IConfiguration) =
     | m when m.Equals("ApiKey", StringComparison.OrdinalIgnoreCase) -> Mode.ApiKey
     | m when m.Equals("OAuth", StringComparison.OrdinalIgnoreCase) -> Mode.OAuth
     | m -> failwith $"Unknown McpAuth:Mode '{m}'. Use None, ApiKey or OAuth."
-
-/// Role that may dispatch. The shared API key grants it: one key, full access, no per-user identity.
-[<Literal>]
-let DispatcherRole = "dispatcher"
 
 module ApiKey =
     [<Literal>]
@@ -62,7 +63,7 @@ module ApiKey =
                 | true, value when matches this.Options.Key (string value) ->
                     let identity =
                         ClaimsIdentity(
-                            [ Claim(ClaimTypes.Name, PrincipalName); Claim(ClaimTypes.Role, DispatcherRole) ],
+                            [ Claim(ClaimTypes.Name, PrincipalName); Claim(ClaimTypes.Role, Dispatcher.Role) ],
                             Scheme
                         )
 
@@ -83,14 +84,67 @@ module ApiKey =
             .AddScheme<Options, Handler>(Scheme, fun o -> o.Key <- key)
         |> ignore
 
+module OAuth =
+    let private required (config: IConfiguration) key =
+        match config[key] with
+        | v when String.IsNullOrWhiteSpace v -> failwith $"McpAuth:Mode is OAuth but {key} is not set (the AppHost sets it)."
+        | v -> v
+
+    /// Bearer tokens from Keycloak (JwtBearer) + the MCP challenge and Protected Resource Metadata (AddMcp).
+    /// JwtBearer fetches Keycloak's metadata lazily, on the first token, so the API starts without Keycloak.
+    let addServices (builder: WebApplicationBuilder) =
+        // Browser-facing URLs: must equal the token's `iss` and `aud` (the Audience mapper sets `aud`).
+        let issuer = required builder.Configuration "McpAuth:Issuer"
+        let resource = required builder.Configuration "McpAuth:ResourceUrl"
+
+        builder.Services
+            .AddAuthentication(fun o ->
+                o.DefaultAuthenticateScheme <- JwtBearerDefaults.AuthenticationScheme
+                // 401 with `WWW-Authenticate: Bearer resource_metadata="..."`.
+                o.DefaultChallengeScheme <- McpAuthenticationDefaults.AuthenticationScheme)
+            .AddJwtBearer(fun o ->
+                o.Authority <- issuer
+                o.RequireHttpsMetadata <- false // local Keycloak on http: demo only
+                o.MapInboundClaims <- false // keep `preferred_username` and `roles` as they are
+                o.TokenValidationParameters <-
+                    TokenValidationParameters(
+                        ValidIssuer = issuer,
+                        ValidAudience = resource,
+                        NameClaimType = "preferred_username",
+                        // Flat `roles` claim from the realm's role mapper.
+                        RoleClaimType = "roles"
+                    ))
+            .AddMcp(fun o ->
+                o.ResourceMetadata <-
+                    ProtectedResourceMetadata(
+                        Resource = resource,
+                        AuthorizationServers = ResizeArray [ issuer ],
+                        ScopesSupported = ResizeArray [ "mcp:tools" ]
+                    ))
+        |> ignore
+
+/// Auth off: every authorization requirement passes, so `[Authorize(Roles = "dispatcher")]` on
+/// `dispatch_order` doesn't block the anonymous caller.
+type AllowAllHandler() =
+    interface IAuthorizationHandler with
+        member _.HandleAsync context =
+            for requirement in List.ofSeq context.PendingRequirements do
+                context.Succeed requirement
+
+            Threading.Tasks.Task.CompletedTask
+
 /// Registers authentication and authorization for the mode.
 let addServices mode (builder: WebApplicationBuilder) =
     match mode with
-    | Mode.None -> ()
+    | Mode.None ->
+        builder.Services.AddAuthorization() |> ignore
+        builder.Services.AddSingleton<IAuthorizationHandler, AllowAllHandler>() |> ignore
     | Mode.ApiKey ->
         ApiKey.addServices builder
         builder.Services.AddAuthorization() |> ignore
-    | Mode.OAuth -> failwith "McpAuth:Mode OAuth is not built yet (#29)."
+    | Mode.OAuth ->
+        OAuth.addServices builder
+        builder.Services.AddAuthorization() |> ignore
 
 /// Maps /mcp, protected unless the mode is None.
 let mapMcp mode (app: WebApplication) =

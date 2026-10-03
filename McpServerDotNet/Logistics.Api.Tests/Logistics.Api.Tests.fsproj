@@ -17,6 +17,7 @@
     <Compile Include="Adapters/RestTests.fs" />
     <Compile Include="Adapters/McpTests.fs" />
     <Compile Include="Adapters/ApiKeyTests.fs" />
+    <Compile Include="Adapters/OAuthTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
