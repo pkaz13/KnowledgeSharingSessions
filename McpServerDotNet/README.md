@@ -1,6 +1,10 @@
 # MCP server in .NET (F#)
 
-An MCP server in F# over a simplified logistics API, run with Aspire and used from GitHub Copilot in VS Code and MCP Inspector.
+An MCP server in F# over a simplified logistics API, run with Aspire and used from GitHub Copilot in VS Code and MCP Inspector, with authentication switchable between none, an API key and OAuth (Keycloak).
+
+**Why:** Copilot can already call a REST API, so what does an MCP server add? The demo shows it on one domain: tools the model discovers on its own, a naive 1:1 tool (`get_drivers`) that gives a confident wrong answer next to a task-shaped tool (`find_dispatch_options`) that gets it right, a mutating tool behind an approval prompt and domain rules, a resource the user attaches as context, and the same server protected by an API key or OAuth with roles.
+
+Inspired by the NDC Oslo 2026 talk ["Old API, New Tricks: Add MCP to Existing .NET REST Endpoints"](https://ndcoslo.com/agenda/old-api-new-tricks-add-mcp-to-existing-dotnet-rest-endpoints) by Jonathan "J." Tower.
 
 **Stack:** .NET 10, F# (API, domain, MCP via `ModelContextProtocol.AspNetCore` 2.2.0), C# Aspire AppHost 13.6.0, xUnit v3 + Unquote.
 
@@ -12,7 +16,10 @@ An MCP server in F# over a simplified logistics API, run with Aspire and used fr
 | `McpServerDotNet.ServiceDefaults/` | C# Aspire ServiceDefaults: OpenTelemetry, health checks (`/health`, `/alive`). |
 | `Logistics.Api/` | F# API (resource `logistics-api`): domain, seed, REST adapter (`Rest.fs`), MCP adapter (`Mcp.fs`), auth toggle for `/mcp` (`McpAuth.fs`). |
 | `.vscode/mcp.json` | MCP server entries for VS Code / GitHub Copilot: `logistics` (`None`, and `OAuth` with client ID `vscode`) and `logistics-api-key` (`ApiKey` mode). |
-| `Logistics.Api.Tests/` | F# tests: `Domain/`, `DemoScenes/`, `Adapters/`. |
+| `Logistics.Api.Tests/` | F# tests: `Domain/`, `DemoScenes/` (incl. checks that `logistics.http` and `prompts.md` match the API and seed), `Adapters/`. |
+| `prompts.md` | Every prompt typed in the live demo, in scene order. Reuse them after the Session. |
+| `logistics.http` | REST calls for the read and dispatch paths, and the scene 6 OAuth discovery (`/mcp` → 401 → Protected Resource Metadata). VS Code REST Client or Rider. |
+| `GLOSSARY.md` | Demo domain terms: Driver, Tractor unit, Trailer, Transport Order, Dispatch, Dispatcher, … |
 | `materials/slides.html` | Slides. Open in a browser and press `S` for the speaker view. Works offline. |
 | `materials/script.md` | Presenter's Script. |
 
@@ -30,6 +37,8 @@ The dashboard opens at http://localhost:15080 (login link in the console). The A
 REST (open in every mode): `GET /drivers`, `/drivers/{id}`, `/tractors`, `/trailers`, `/orders` (`?status=open`), `/orders/{id}`, `/orders/{id}/dispatch-options`, `/dispatches`; `POST /dispatches` (body `{orderId, driverId, tractorId, trailerId}`; 201, or 404/409 with the reason as plain text), `DELETE /dispatches/{id}`. Data is in memory and reseeded on every start, with dates relative to startup (see `Logistics.Api/Seed.fs`).
 
 MCP (Streamable HTTP, stateless) on http://localhost:5080/mcp, same process: read-only tools `get_drivers`, `list_open_orders`, `find_dispatch_options`, `get_driver_schedule`, the mutating tool `dispatch_order` (rule violations come back as tool text with `isError: true`; success names the Dispatcher) and the resource `logistics://rules`. VS Code picks the server up from `.vscode/mcp.json` (open the `McpServerDotNet` folder). MCP Inspector: `npx @modelcontextprotocol/inspector`, transport Streamable HTTP, URL above.
+
+To replay the demo, follow [`prompts.md`](./prompts.md) (new chat per scene) and [`logistics.http`](./logistics.http).
 
 ### Auth modes
 
@@ -69,6 +78,12 @@ Tests:
 
 ```sh
 dotnet test
+```
+
+Before a Session, check `logistics.http` against the running AppHost (`DEMO_API_MODE=OAuth` for the scene 6 requests while the `OAuth` profile runs):
+
+```sh
+DEMO_API_URL=http://localhost:5080 DEMO_API_MODE=None dotnet test --filter "FullyQualifiedName~ArtefactTests"
 ```
 
 ## Sessions

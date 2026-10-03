@@ -7,6 +7,7 @@ Materials for the knowledge sharing sessions I run, mostly for my team at work. 
 | Topic | Stack | What it's about |
 |-------|-------|-----------------|
 | [AssertObjectPattern](./AssertObjectPattern) | F#, .NET 8 | Wrapping technical assertions in business-readable assert objects. |
+| [McpServerDotNet](./McpServerDotNet) | F#, .NET 10, Aspire, Keycloak | An MCP server over a logistics REST API, used from GitHub Copilot, with auth switchable between none, API key and OAuth. |
 
 ## Conventions
 

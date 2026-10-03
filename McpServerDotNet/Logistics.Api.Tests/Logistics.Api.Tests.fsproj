@@ -13,6 +13,7 @@
     <Compile Include="Domain/DispatchTests.fs" />
     <Compile Include="DemoScenes/SeedTests.fs" />
     <Compile Include="DemoScenes/DispatchSceneTests.fs" />
+    <Compile Include="DemoScenes/ArtefactTests.fs" />
     <Compile Include="Adapters/HealthTests.fs" />
     <Compile Include="Adapters/RestTests.fs" />
     <Compile Include="Adapters/McpTests.fs" />
