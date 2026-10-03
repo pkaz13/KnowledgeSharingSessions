@@ -17,6 +17,9 @@ let main args =
     let builder = WebApplication.CreateBuilder(args)
     builder.AddServiceDefaults() |> ignore
 
+    let authMode = McpAuth.modeOf builder.Configuration
+    McpAuth.addServices authMode builder
+
     builder.Services.TryAddSingleton<TimeProvider>(TimeProvider.System)
 
     // Reseeded on every start, dates relative to startup.
@@ -39,7 +42,7 @@ let main args =
     app.Services.GetRequiredService<Store>() |> ignore
     app.MapDefaultEndpoints() |> ignore
     Rest.mapEndpoints app
-    app.MapMcp("/mcp") |> ignore
+    McpAuth.mapMcp authMode app
 
     app.Run()
     0

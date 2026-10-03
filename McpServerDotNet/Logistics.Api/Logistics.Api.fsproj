@@ -12,6 +12,7 @@
     <Compile Include="Dispatcher.fs" />
     <Compile Include="Rest.fs" />
     <Compile Include="Mcp.fs" />
+    <Compile Include="McpAuth.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

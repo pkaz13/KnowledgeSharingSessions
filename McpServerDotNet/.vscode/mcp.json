@@ -1,8 +1,23 @@
 {
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "mcpApiKey",
+      "description": "MCP API key (Aspire parameter mcp-api-key)",
+      "password": true
+    }
+  ],
   "servers": {
     "logistics": {
       "type": "http",
       "url": "http://localhost:5080/mcp"
+    },
+    "logistics-api-key": {
+      "type": "http",
+      "url": "http://localhost:5080/mcp",
+      "headers": {
+        "X-Api-Key": "${input:mcpApiKey}"
+      }
     }
   }
 }
