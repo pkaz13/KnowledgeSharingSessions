@@ -135,16 +135,12 @@ type AllowAllHandler() =
 
 /// Registers authentication and authorization for the mode.
 let addServices mode (builder: WebApplicationBuilder) =
+    builder.Services.AddAuthorization() |> ignore
+
     match mode with
-    | Mode.None ->
-        builder.Services.AddAuthorization() |> ignore
-        builder.Services.AddSingleton<IAuthorizationHandler, AllowAllHandler>() |> ignore
-    | Mode.ApiKey ->
-        ApiKey.addServices builder
-        builder.Services.AddAuthorization() |> ignore
-    | Mode.OAuth ->
-        OAuth.addServices builder
-        builder.Services.AddAuthorization() |> ignore
+    | Mode.None -> builder.Services.AddSingleton<IAuthorizationHandler, AllowAllHandler>() |> ignore
+    | Mode.ApiKey -> ApiKey.addServices builder
+    | Mode.OAuth -> OAuth.addServices builder
 
 /// Maps /mcp, protected unless the mode is None.
 let mapMcp mode (app: WebApplication) =

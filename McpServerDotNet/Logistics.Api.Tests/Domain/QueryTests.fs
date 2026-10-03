@@ -63,8 +63,8 @@ let ``driverSchedule for an unknown driver is an error`` () =
 
 [<Fact>]
 let ``findDispatchOptions for an unknown order is an error`` () =
-    test <@ findDispatchOptions sampleBoard "ORD-9" = Error "Order ORD-9 not found" @>
+    test <@ findDispatchOptions sampleBoard "ORD-9" = Error(NotFound "Order ORD-9 not found") @>
 
 [<Fact>]
 let ``findDispatchOptions for a dispatched order is an error`` () =
-    test <@ findDispatchOptions sampleBoard "ORD-2" = Error "Order ORD-2 is already dispatched (DSP-1)" @>
+    test <@ findDispatchOptions sampleBoard "ORD-2" = Error(AlreadyDispatched("ORD-2", "DSP-1")) @>

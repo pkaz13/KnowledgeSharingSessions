@@ -15,7 +15,7 @@ let seed = Seed.create now
 let private options orderId =
     match findDispatchOptions seed orderId with
     | Ok o -> o
-    | Error e -> failwith e
+    | Error e -> failwith (DispatchError.describe e)
 
 let private reasonsOf id (rejections: Rejection list) =
     rejections |> List.filter (fun r -> r.Id = id) |> List.collect _.Reasons
