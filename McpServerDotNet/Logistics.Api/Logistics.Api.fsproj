@@ -5,11 +5,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Domain.fs" />
+    <Compile Include="Seed.fs" />
+    <Compile Include="Rest.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Referenced now, wired up in a later ticket. -->
+    <PackageReference Include="FSharp.SystemTextJson" Version="1.4.36" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
   </ItemGroup>
 

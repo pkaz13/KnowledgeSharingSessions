@@ -26,6 +26,8 @@ dotnet run --project McpServerDotNet.AppHost --launch-profile None
 
 The dashboard opens at http://localhost:15080 (login link in the console). The API listens on http://localhost:5080; `GET /health` returns `Healthy`.
 
+REST (read side): `GET /drivers`, `/drivers/{id}`, `/tractors`, `/trailers`, `/orders` (`?status=open`), `/orders/{id}`, `/orders/{id}/dispatch-options`, `/dispatches`. Data is in memory and reseeded on every start, with dates relative to startup (see `Logistics.Api/Seed.fs`).
+
 Tests:
 
 ```sh
