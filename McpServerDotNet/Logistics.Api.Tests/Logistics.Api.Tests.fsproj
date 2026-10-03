@@ -7,7 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Domain/Boards.fs" />
+    <Compile Include="Domain/RuleTests.fs" />
+    <Compile Include="Domain/QueryTests.fs" />
+    <Compile Include="DemoScenes/SeedTests.fs" />
     <Compile Include="Adapters/HealthTests.fs" />
+    <Compile Include="Adapters/RestTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
