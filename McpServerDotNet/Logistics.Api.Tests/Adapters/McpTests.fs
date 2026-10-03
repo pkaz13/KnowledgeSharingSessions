@@ -34,13 +34,16 @@ let private readTools =
     [ "find_dispatch_options"; "get_driver_schedule"; "get_drivers"; "list_open_orders" ]
 
 [<Fact>]
-let ``tools/list lists the read tools, each with a description`` () =
+let ``tools/list lists every tool, each with a description`` () =
     withMcp (fun client ->
         task {
             let! tools = client.ListToolsAsync(cancellationToken = ct ())
             let described = tools |> Seq.filter (fun t -> not (String.IsNullOrWhiteSpace t.Description))
 
-            test <@ described |> Seq.map _.Name |> Seq.sort |> List.ofSeq = readTools @>
+            test
+                <@
+                    described |> Seq.map _.Name |> Seq.sort |> List.ofSeq = List.sort ("dispatch_order" :: readTools)
+                @>
         })
 
 /// Names in the tool's input schema `required` array.
@@ -60,6 +63,7 @@ let ``tools/list marks only mandatory params as required`` () =
             test <@ requiredOf "find_dispatch_options" = [ "orderId" ] @>
             test <@ requiredOf "get_driver_schedule" = [ "driverId"; "from"; "to" ] @>
             test <@ requiredOf "get_drivers" = [] @>
+            test <@ requiredOf "dispatch_order" = [ "orderId"; "driverId"; "tractorId"; "trailerId" ] @>
         })
 
 [<Fact>]
@@ -101,6 +105,54 @@ let ``find_dispatch_options returns ORD-103's single option as JSON`` () =
 
             test <@ result.IsError <> Nullable true @>
             test <@ options = [ "D-01", "TRK-02", "TRL-02" ] @>
+        })
+
+let private call (client: McpClient) name (args: (string * obj) list) =
+    client.CallToolAsync(name, dict args |> Collections.Generic.Dictionary, cancellationToken = ct ())
+
+let private dispatchArgs orderId driverId tractorId trailerId : (string * obj) list =
+    [ "orderId", box orderId
+      "driverId", box driverId
+      "tractorId", box tractorId
+      "trailerId", box trailerId ]
+
+[<Fact>]
+let ``dispatch_order returns a domain error as tool text, not a protocol error`` () =
+    withMcp (fun client ->
+        task {
+            let! result = call client "dispatch_order" (dispatchArgs "ORD-105" "D-04" "TRK-03" "TRL-06")
+            let text = textOf result
+
+            test <@ result.IsError = Nullable true @>
+            test <@ text.StartsWith "Can't dispatch ORD-105:" @>
+            test <@ text.Contains "Driver CPC expired" @>
+        })
+
+[<Fact>]
+let ``dispatch_order names the Dispatcher and get_driver_schedule shows the new Dispatch`` () =
+    withMcp (fun client ->
+        task {
+            let! dispatched = call client "dispatch_order" (dispatchArgs "ORD-103" "D-01" "TRK-02" "TRL-02")
+
+            let! schedule =
+                call
+                    client
+                    "get_driver_schedule"
+                    [ "driverId", box "D-01"
+                      "from", box (DateTimeOffset.UtcNow.AddDays(-1.0))
+                      "to", box (DateTimeOffset.UtcNow.AddDays 3.0) ]
+
+            use json = JsonDocument.Parse(textOf schedule)
+
+            let orderIds =
+                json.RootElement.EnumerateArray()
+                |> Seq.map _.GetProperty("orderId").GetString()
+                |> List.ofSeq
+
+            test <@ dispatched.IsError <> Nullable true @>
+            test <@ (textOf dispatched).StartsWith "Dispatched ORD-103 as DSP-005" @>
+            test <@ (textOf dispatched).EndsWith "dispatched by anonymous." @>
+            test <@ orderIds = [ "ORD-103" ] @>
         })
 
 [<Fact>]
