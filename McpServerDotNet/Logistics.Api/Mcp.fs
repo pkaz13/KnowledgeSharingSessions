@@ -7,6 +7,7 @@ open System
 open System.ComponentModel
 open System.Runtime.InteropServices
 open System.Security.Claims
+open Microsoft.AspNetCore.Authorization
 open ModelContextProtocol.Protocol
 open ModelContextProtocol.Server
 open Logistics.Api.Domain
@@ -65,7 +66,9 @@ module Tools =
 
     /// Mutating, so not ReadOnly: clients ask the user before calling it.
     /// Domain errors come back as tool text (isError = true), never as a protocol error.
+    /// Needs role `dispatcher` once /mcp is protected (enforced by AddAuthorizationFilters).
     [<McpServerTool(Name = "dispatch_order", Destructive = false, Idempotent = false, OpenWorld = false)>]
+    [<Authorize(Roles = Dispatcher.Role)>]
     [<Description("Dispatches a Transport Order: assigns one Driver, one Tractor unit and one Trailer for the order's whole window. "
                   + "All dispatch rules are checked; if any is broken nothing is dispatched and the reasons are returned. "
                   + "Use find_dispatch_options first to pick an admissible combination.")>]

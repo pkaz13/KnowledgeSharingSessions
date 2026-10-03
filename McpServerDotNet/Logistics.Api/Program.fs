@@ -36,6 +36,8 @@ let main args =
         .WithHttpTransport(fun o -> o.SessionMode <- HttpServerSessionMode.Stateless)
         .WithToolsFromAssembly()
         .WithResourcesFromAssembly()
+        // Honours [Authorize] on tools (dispatch_order needs role dispatcher).
+        .AddAuthorizationFilters()
     |> ignore
 
     let app = builder.Build()

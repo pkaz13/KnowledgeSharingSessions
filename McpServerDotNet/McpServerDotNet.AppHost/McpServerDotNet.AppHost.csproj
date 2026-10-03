@@ -12,4 +12,8 @@
     <ProjectReference Include="../Logistics.Api/Logistics.Api.fsproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.6.0-preview.1.26479.8" />
+  </ItemGroup>
+
 </Project>
