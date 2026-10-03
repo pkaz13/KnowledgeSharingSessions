@@ -10,7 +10,8 @@ An MCP server in F# over a simplified logistics API, run with Aspire and used fr
 |------|---------------|
 | `McpServerDotNet.AppHost/` | C# Aspire AppHost. One launch profile per auth mode (`None` for now). |
 | `McpServerDotNet.ServiceDefaults/` | C# Aspire ServiceDefaults: OpenTelemetry, health checks (`/health`, `/alive`). |
-| `Logistics.Api/` | F# API (resource `logistics-api`). |
+| `Logistics.Api/` | F# API (resource `logistics-api`): domain, seed, REST adapter (`Rest.fs`), MCP adapter (`Mcp.fs`). |
+| `.vscode/mcp.json` | MCP server entry for VS Code / GitHub Copilot. |
 | `Logistics.Api.Tests/` | F# tests: `Domain/`, `DemoScenes/`, `Adapters/`. |
 | `materials/slides.html` | Slides. Open in a browser and press `S` for the speaker view. Works offline. |
 | `materials/script.md` | Presenter's Script. |
@@ -27,6 +28,8 @@ dotnet run --project McpServerDotNet.AppHost --launch-profile None
 The dashboard opens at http://localhost:15080 (login link in the console). The API listens on http://localhost:5080; `GET /health` returns `Healthy`.
 
 REST (read side): `GET /drivers`, `/drivers/{id}`, `/tractors`, `/trailers`, `/orders` (`?status=open`), `/orders/{id}`, `/orders/{id}/dispatch-options`, `/dispatches`. Data is in memory and reseeded on every start, with dates relative to startup (see `Logistics.Api/Seed.fs`).
+
+MCP (Streamable HTTP, stateless) on http://localhost:5080/mcp, same process: read-only tools `get_drivers`, `list_open_orders`, `find_dispatch_options`, `get_driver_schedule` and the resource `logistics://rules`. VS Code picks the server up from `.vscode/mcp.json` (open the `McpServerDotNet` folder). MCP Inspector: `npx @modelcontextprotocol/inspector`, transport Streamable HTTP, URL above.
 
 Tests:
 

@@ -7,9 +7,6 @@ open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Routing
 open Logistics.Api.Domain
 
-/// The in-memory store: a mutable reference to the immutable Dispatch board.
-type Store = DispatchBoard ref
-
 let private orNotFound (value: 'a option) message =
     match value with
     | Some v -> Results.Ok v

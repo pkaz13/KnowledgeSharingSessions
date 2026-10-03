@@ -13,6 +13,7 @@
     <Compile Include="DemoScenes/SeedTests.fs" />
     <Compile Include="Adapters/HealthTests.fs" />
     <Compile Include="Adapters/RestTests.fs" />
+    <Compile Include="Adapters/McpTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
