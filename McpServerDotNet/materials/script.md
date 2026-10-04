@@ -27,7 +27,7 @@ Format każdej sceny: **Mówię** (co powiedzieć), **Klikam / wpisuję** (co zr
 
 Porty: API `5080`, dashboard Aspire `15080`, Keycloak `8080` (tylko `OAuth`), MCP Inspector `6274`.
 
-- [ ] Docker działa. Kontener Keycloak **już utworzony** (persistent): raz uruchomić AppHost z `--launch-profile OAuth`, poczekać aż Keycloak wstanie, zatrzymać AppHost. Kontener zostaje, więc w scenie 6 start jest szybki.
+- [ ] Docker działa. Kontener Keycloak **już utworzony** (persistent): raz uruchomić AppHost z `--launch-profile OAuth`, poczekać aż Keycloak wstanie, zalogować się raz jako alice (http://localhost:8080/realms/mcp/account) i wylogować, zatrzymać AppHost. Kontener zostaje, więc w scenie 6 start jest szybki. Bez działającego Keycloaka nie wstanie też API (AppHost czeka na Keycloak), a scena 6 nie ma nagrania zapasowego.
 - [ ] AppHost na `None` uruchomiony **tuż przed** Session (świeży seed, "tomorrow" = data UTC po starcie): `dotnet run --project McpServerDotNet.AppHost --launch-profile None` w folderze `McpServerDotNet`. Dashboard otwarty na http://localhost:15080 (link z loginem w konsoli).
 - [ ] Opcjonalnie: `DEMO_API_URL=http://localhost:5080 DEMO_API_MODE=None dotnet test --filter "FullyQualifiedName~ArtefactTests"` — sprawdza `logistics.http` i `prompts.md` na żywym API. **Uwaga:** zapisuje dispatch i go anuluje; po teście zrestartować AppHost, żeby seed był czysty.
 - [ ] MCP Inspector otwarty (`npx @modelcontextprotocol/inspector`), transport Streamable HTTP, URL `http://localhost:5080/mcp`, jeszcze niepołączony.
@@ -35,7 +35,6 @@ Porty: API `5080`, dashboard Aspire `15080`, Keycloak `8080` (tylko `OAuth`), MC
 - [ ] Copilot Chat w trybie agent, **model przypięty** (ten sam co na próbie). Tool picker zresetowany: wszystkie narzędzia `logistics` włączone.
 - [ ] Wylogowany z Keycloak: w VS Code (menu Accounts) i w przeglądarce (brak sesji SSO alice/bob), żeby logowania w scenie 6 były widoczne i na właściwego użytkownika.
 - [ ] `prompts.md` i `logistics.http` otwarte w zakładkach; `slides.html` w przeglądarce, widok prowadzącego (`S`).
-- [ ] Nagranie zapasowe pod ręką (co najmniej scena 6: `.http` 401 → PRM i Inspector OAuth).
 - [ ] Powiadomienia wyłączone (Slack, Teams, mail, system), zoom czcionek w VS Code i przeglądarce powiększony.
 
 Do sprawdzenia na próbie (zależy od modelu i wersji VS Code): czy model faktycznie wywołuje `dispatch_order` w wymuszonym nakładaniu (scena 4); czy VS Code automatycznie zatwierdza narzędzia z adnotacją `ReadOnly`; logowanie alice (Copilot) i bob (Inspector).
@@ -78,7 +77,7 @@ Prompty i kroki: [prompts.md, Scene 1](../prompts.md#scene-1-aspire-dashboard-no
 
 **Fallback:**
 
-- Inspector się nie łączy: sprawdzam transport (Streamable HTTP, nie SSE) i URL z `/mcp`; dalej nie działa → `logistics.http` „All Drivers (what get_drivers returns: licences, certificates, Absences, but no Dispatches)” pokazuje te same dane, a schematy narzędzi pokazuję w nagraniu zapasowym.
+- Inspector się nie łączy: sprawdzam transport (Streamable HTTP, nie SSE) i URL z `/mcp`; dalej nie działa → `logistics.http` „All Drivers (what get_drivers returns: licences, certificates, Absences, but no Dispatches)” pokazuje te same dane, a schematy narzędzi pokazuję w `Logistics.Api/Mcp.fs` (atrybuty `McpServerTool` i `Description`: dokładnie to, co dostaje model).
 - AppHost nie wstał: zajęty port 5080/15080 → zamykam stary proces i startuję ponownie (ok. 20 s); w tym czasie mówię o slajdzie 7 (in-process).
 
 ## 4. Scena 3: discovery kontra naiwne narzędzie (~5 min)
@@ -190,7 +189,7 @@ Kroki i prompt: [prompts.md, Scene 6](../prompts.md#scene-6-oauth-oauth); żąda
 
 **Fallback:**
 
-- Keycloak nie startuje albo logowanie się sypie: **nagranie zapasowe** (`.http` 401 → PRM i Inspector OAuth), a słownie: alice dispatchuje, bob nie widzi narzędzia.
+- Keycloak nie startuje albo logowanie się sypie: API w `OAuth` też nie wstanie (AppHost czeka na Keycloak), więc nie pokażę nawet 401 → PRM. Wracam do slajdu 10 i opowiadam przepływ krok po kroku przy diagramie, pokazuję `McpAuth.fs` (walidacja `iss`/`aud`, PRM) i `[<Authorize(Roles = Dispatcher.Role)>]` na `dispatch_order` w `Mcp.fs`, a słownie: alice dispatchuje, bob nie widzi narzędzia. Potem restart na `None`, żeby mieć działające API na Q&A.
 - Copilot loguje się jako bob (sesja SSO z kroku 3): wylogowuję w przeglądarce (http://localhost:8080/realms/mcp/account → Sign out), w VS Code Accounts → wyloguj, restart serwera `logistics`.
 - Inspector nie wraca po logowaniu: redirect musi iść na `http://127.0.0.1:6274/oauth/callback` — otwieram Inspector pod `127.0.0.1`, nie `localhost`.
 
