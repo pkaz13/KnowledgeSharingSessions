@@ -84,11 +84,3 @@ Restart the AppHost with `--launch-profile OAuth` (data reseeds, earlier dispatc
 ```text
 Dispatch order ORD-103 to Lukasz Nowak (D-01) with tractor unit TRK-02 and trailer TRL-02.
 ```
-
-## Scene 7 (optional): API key (`ApiKey`)
-
-Restart the AppHost with `--launch-profile ApiKey`. In VS Code start the `logistics-api-key` server and enter the key in the password prompt. New chat (expect `dispatched by api-key`):
-
-```text
-Dispatch order ORD-103 to Lukasz Nowak (D-01) with tractor unit TRK-02 and trailer TRL-02.
-```

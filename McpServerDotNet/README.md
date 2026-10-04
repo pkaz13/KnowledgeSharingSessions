@@ -22,6 +22,54 @@ Inspired by the NDC Oslo 2026 talk ["Old API, New Tricks: Add MCP to Existing .N
 | `GLOSSARY.md` | Demo domain terms: Driver, Tractor unit, Trailer, Transport Order, Dispatch, Dispatcher, … |
 | `materials/slides.html` | Slides. Open in a browser and press `S` for the speaker view. Works offline. |
 | `materials/script.md` | Presenter's Script. |
+| `materials/cheatsheet.md` | Presenter's cheat sheet: architecture, OAuth in MCP, Keycloak, acronyms, what's next. |
+
+## Architecture
+
+One process, two adapters over one pure F# domain (ports and adapters). The Aspire AppHost starts the API and, in the `OAuth` profile, Keycloak.
+
+```mermaid
+flowchart TB
+    http["logistics.http<br/>(REST Client)"]
+    vscode["VS Code + GitHub Copilot"]
+    inspector["MCP Inspector"]
+
+    subgraph apphost["Aspire AppHost (C#) · launch profile = auth mode"]
+        subgraph api["logistics-api (F#) · http://localhost:5080"]
+            rest["REST adapter<br/>Rest.fs · open in every mode"]
+            auth["McpAuth.fs<br/>guards /mcp: None | ApiKey | OAuth"]
+            mcp["MCP adapter<br/>Mcp.fs · 5 tools + logistics://rules"]
+            domain["Domain.fs<br/>pure rules, no I/O"]
+            store["Store.fs<br/>in-memory Dispatch board, filled by Seed.fs"]
+        end
+        keycloak["Keycloak :8080<br/>realm mcp · OAuth profile only"]
+        dashboard["Aspire dashboard :15080<br/>logs, traces, health"]
+    end
+
+    http -- "GET / POST" --> rest
+    vscode -- "POST /mcp (JSON-RPC)" --> auth
+    inspector -- "POST /mcp (JSON-RPC)" --> auth
+    vscode -. "browser login" .-> keycloak
+    inspector -. "browser login" .-> keycloak
+    auth --> mcp
+    auth -. "token signing keys" .-> keycloak
+    rest --> domain
+    mcp --> domain
+    domain --> store
+```
+
+### Where to find what
+
+| Question | Look in |
+|----------|---------|
+| What are the business rules? | `Logistics.Api/Domain.fs` (pure functions over the Dispatch board); the same rules in plain words: resource `logistics://rules` in `Mcp.fs` |
+| What does the model see (tool names, descriptions, schemas)? | `Logistics.Api/Mcp.fs` (`[<McpServerTool>]` attributes and `Description`s) |
+| How is `/mcp` protected? | `Logistics.Api/McpAuth.fs` (mode switch, JWT validation, Protected Resource Metadata); `Dispatcher.fs` (who dispatched, role name) |
+| Where is the server wired up? | `Logistics.Api/Program.fs` (`AddMcpServer`, stateless Streamable HTTP, `MapMcp("/mcp")`) |
+| What data is there on start? | `Logistics.Api/Seed.fs` (header comment lists tomorrow's Dispatches and traps) |
+| How are the profiles and Keycloak started? | `McpServerDotNet.AppHost/AppHost.cs`, `Properties/launchSettings.json` |
+| Keycloak users, roles, clients, audience | `McpServerDotNet.AppHost/Realms/mcp-realm.json` |
+| How do I check the demo still matches the code? | `Logistics.Api.Tests/DemoScenes/` |
 
 ## Run it
 
