@@ -1,0 +1,107 @@
+# REST calls for the demo. Open in VS Code (REST Client extension) or Rider and send one request at a time.
+# REST is open in every auth mode; only /mcp is protected.
+# Data is reseeded on every start. "tomorrow" = the UTC date after the API started.
+# `# expect:` lines are checked by Logistics.Api.Tests/DemoScenes/ArtefactTests.fs (status, then text the body must contain).
+
+@baseUrl = http://localhost:5080
+
+### Health
+# expect: 200 Healthy
+GET {{baseUrl}}/health
+
+### ===== Read path =====
+
+### All Drivers (what get_drivers returns: licences, certificates, Absences, but no Dispatches)
+# expect: 200 Lukasz Nowak
+GET {{baseUrl}}/drivers
+
+### One Driver
+# expect: 200 Lukasz Nowak
+GET {{baseUrl}}/drivers/D-01
+
+### Tractor units
+# expect: 200 LowDeck
+GET {{baseUrl}}/tractors
+
+### Trailers
+# expect: 200 Mega
+GET {{baseUrl}}/trailers
+
+### Open Transport Orders (ORD-103, ORD-104, ORD-105 tomorrow, more later)
+# expect: 200 ORD-103
+GET {{baseUrl}}/orders?status=open
+
+### One Transport Order (scene 3: Dangerous goods tomorrow)
+# expect: 200 DangerousGoods
+GET {{baseUrl}}/orders/ORD-103
+
+### Dispatch options for ORD-103: one option (Lukasz, TRK-02, TRL-02) plus rejection reasons
+# expect: 200 D-01
+GET {{baseUrl}}/orders/ORD-103/dispatch-options
+
+### Dispatch options for ORD-104 (Mega): no option, both Low deck tractor units are dispatched
+# expect: 200 "options":[]
+GET {{baseUrl}}/orders/ORD-104/dispatch-options
+
+### Existing Dispatches (seed has DSP-001 to DSP-004). Fallback in scene 4 to show state.
+# expect: 200 DSP-001
+GET {{baseUrl}}/dispatches
+
+### ===== Dispatch path =====
+
+### Scene 4: dispatch ORD-103 with its only option -> 201, Dispatcher "anonymous" (REST never carries a user)
+# expect: 201 "dispatcher":"anonymous"
+POST {{baseUrl}}/dispatches
+Content-Type: application/json
+
+{
+  "orderId": "ORD-103",
+  "driverId": "D-01",
+  "tractorId": "TRK-02",
+  "trailerId": "TRL-02"
+}
+
+### Scene 4: Lukasz onto overlapping ORD-105 -> 409, the broken rules as plain text
+# expect: 409 Already dispatched on ORD-103
+POST {{baseUrl}}/dispatches
+Content-Type: application/json
+
+{
+  "orderId": "ORD-105",
+  "driverId": "D-01",
+  "tractorId": "TRK-02",
+  "trailerId": "TRL-06"
+}
+
+### Dispatches now include DSP-005 for ORD-103
+# expect: 200 DSP-005
+GET {{baseUrl}}/dispatches
+
+### Cancel DSP-005: ORD-103 is open again
+# expect: 204
+DELETE {{baseUrl}}/dispatches/DSP-005
+
+### Unknown Dispatch -> 404 with the reason as text
+# expect: 404 DSP-005
+DELETE {{baseUrl}}/dispatches/DSP-005
+
+### ===== Scene 6 (AppHost profile OAuth) =====
+
+### Scene 6: /mcp without a token -> 401 and WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp"
+# mode: OAuth
+# expect: 401
+POST {{baseUrl}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"logistics.http","version":"1"}}}
+
+### Scene 6: Protected Resource Metadata at the URL from WWW-Authenticate -> resource, Keycloak as authorization server, scope
+# mode: OAuth
+# expect: 200 http://localhost:8080/realms/mcp
+GET {{baseUrl}}/.well-known/oauth-protected-resource/mcp
+
+### Scene 6: the same metadata at the root path
+# mode: OAuth
+# expect: 200 mcp:tools
+GET {{baseUrl}}/.well-known/oauth-protected-resource

@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+		<title>MCP servers in .NET</title>
+
+		<link rel="stylesheet" href="reveal.js/reset.css" />
+		<link rel="stylesheet" href="reveal.js/reveal.css" />
+		<!-- Themes available offline: white.css, black.css -->
+		<link rel="stylesheet" href="reveal.js/theme/white.css" />
+		<link rel="stylesheet" href="reveal.js/plugin/highlight/monokai.css" />
+		<style>
+			/* Everything below is local: no web fonts, no external images, no CDN. */
+			.reveal { font-size: 34px; }
+			.reveal h2 { font-size: 1.6em; }
+			.reveal h3 { font-size: 1.25em; }
+			.reveal ul, .reveal ol { display: block; }
+			.reveal li { margin: 0.25em 0; }
+			.reveal .small { font-size: 0.7em; }
+			.reveal .muted { color: #666; }
+			.reveal .accent { color: #c0392b; }
+			.reveal .credit { font-size: 0.6em; color: #444; margin-top: 1.5em; }
+			.reveal .cols { display: flex; gap: 1.2em; text-align: left; }
+			.reveal .cols > div { flex: 1; }
+			.reveal .card { border: 2px solid #ccc; border-radius: 8px; padding: 0.4em 0.7em; font-size: 0.75em; }
+			.reveal .card h4 { margin: 0 0 0.3em; font-size: 1.1em; text-transform: none; }
+			.reveal .card.highlight { border-color: #c0392b; }
+			.reveal blockquote { width: 85%; font-size: 0.85em; }
+			.reveal svg.diagram { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+			.reveal svg text { font-family: "Source Sans Pro", Helvetica, sans-serif; }
+			.reveal table { font-size: 0.7em; }
+			.reveal table.terms { font-size: 0.5em; }
+			.reveal .demo-marker {
+				margin-top: 0.8em; display: inline-block; padding: 0.2em 0.8em;
+				background: #c0392b; color: #fff; border-radius: 6px; font-size: 0.7em; font-weight: bold;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<!-- ===================== Block A: Intro (slides 1-9) ===================== -->
+
+				<!-- 1 -->
+				<section>
+					<h2>MCP servers in .NET</h2>
+					<p>Expose an existing API to AI agents: an MCP server in F#, run with Aspire, used from GitHub Copilot and MCP Inspector</p>
+					<p class="credit">
+						Inspired by the NDC Oslo 2026 talk
+						<a href="https://ndcoslo.com/agenda/old-api-new-tricks-add-mcp-to-existing-dotnet-rest-endpoints">“Old API, New Tricks: Add MCP to Existing .NET REST Endpoints”</a>
+						by Jonathan “J.” Tower
+					</p>
+					<aside class="notes">
+						Welcome. Credit J. Tower's NDC Oslo 2026 talk: this Session builds on its idea (add MCP next to an existing .NET API).
+						Today: one F# API, one MCP server, live in Copilot and MCP Inspector. Keep it short, go to the hook.
+					</aside>
+				</section>
+
+				<!-- 2 -->
+				<section>
+					<h2>Copilot can already <code>curl</code> your REST API. Why MCP?</h2>
+					<aside class="notes">
+						Ask the question and leave it open. Let it hang for a second, do not answer.
+						"Keep this in mind; we come back to it after the demo" (answered on slide 12).
+					</aside>
+				</section>
+
+				<!-- 3 -->
+				<section>
+					<h3>Agenda</h3>
+					<ol>
+						<li>MCP: architecture, primitives, transports, deployment</li>
+						<li>Demo domain, then live: scenes 1–5</li>
+						<li>Auth: what MCP adds to OAuth, then live: scene 6</li>
+						<li>Why MCP? What's next</li>
+					</ol>
+					<aside class="notes">
+						Sandwich: short theory, then demo, short auth theory, then demo, then closing.
+						Most of the time is in the live demo. Q&amp;A at the end.
+					</aside>
+				</section>
+
+				<!-- 4 -->
+				<section>
+					<h3>MCP architecture</h3>
+					<svg class="diagram" viewBox="0 0 900 300" width="900" height="300" role="img" aria-label="Host contains model and MCP clients; each client talks to one MCP server over JSON-RPC">
+						<defs>
+							<marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333" /></marker>
+						</defs>
+						<rect x="10" y="20" width="470" height="260" rx="12" fill="#f4f6f8" stroke="#888" stroke-width="2" />
+						<text x="30" y="52" font-size="24" font-weight="bold">Host (VS Code + Copilot)</text>
+						<rect x="40" y="80" width="150" height="70" rx="8" fill="#fff" stroke="#888" stroke-width="2" />
+						<text x="115" y="122" font-size="22" text-anchor="middle">Model</text>
+						<rect x="290" y="80" width="160" height="70" rx="8" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="370" y="122" font-size="22" text-anchor="middle">MCP client</text>
+						<rect x="290" y="190" width="160" height="70" rx="8" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="370" y="232" font-size="22" text-anchor="middle">MCP client</text>
+						<line x1="190" y1="115" x2="285" y2="115" stroke="#888" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arr4)" />
+						<text x="238" y="105" font-size="16" text-anchor="middle" fill="#666">asks</text>
+						<rect x="650" y="80" width="230" height="70" rx="8" fill="#fff" stroke="#c0392b" stroke-width="3" />
+						<text x="765" y="122" font-size="22" text-anchor="middle">MCP server (ours)</text>
+						<rect x="650" y="190" width="230" height="70" rx="8" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="765" y="232" font-size="22" text-anchor="middle">another MCP server</text>
+						<line x1="450" y1="115" x2="645" y2="115" stroke="#333" stroke-width="2" marker-start="url(#arr4)" marker-end="url(#arr4)" />
+						<line x1="450" y1="225" x2="645" y2="225" stroke="#333" stroke-width="2" marker-start="url(#arr4)" marker-end="url(#arr4)" />
+						<text x="548" y="105" font-size="18" text-anchor="middle">JSON-RPC (1:1)</text>
+						<text x="548" y="215" font-size="18" text-anchor="middle">JSON-RPC (1:1)</text>
+					</svg>
+					<p class="small">The model never talks to the server directly. <strong>The host decides</strong> what to call, what to approve, what to show.</p>
+					<aside class="notes">
+						Three roles: host (VS Code), one MCP client per server (1:1), MCP server. Messages are JSON-RPC.
+						Key angle: the model only proposes; the host runs the call, asks for approval, decides what goes into context.
+					</aside>
+				</section>
+
+				<!-- 5 -->
+				<section>
+					<h3>Server primitives</h3>
+					<table>
+						<thead><tr><th>Primitive</th><th>Who triggers it</th><th>Today</th></tr></thead>
+						<tbody>
+							<tr><td><strong>Tools</strong></td><td>the model invokes them</td><td>5 tools: <code>get_drivers</code>, <code>list_open_orders</code>, <code>find_dispatch_options</code>, <code>dispatch_order</code>, <code>get_driver_schedule</code></td></tr>
+							<tr><td><strong>Resources</strong></td><td>the user / app attaches them</td><td>1 resource: <code>logistics://rules</code></td></tr>
+							<tr><td><strong>Prompts</strong></td><td>the user invokes them</td><td class="muted">not today</td></tr>
+						</tbody>
+					</table>
+					<aside class="notes">
+						Three primitives, split by who is in control: model (tools), user/app (resources), user (prompts).
+						Announce today's surface: 5 tools + 1 resource. Prompts only on "What's next".
+					</aside>
+				</section>
+
+				<!-- 6 -->
+				<section>
+					<h3>Transports: local vs remote</h3>
+					<div class="cols">
+						<div class="card">
+							<h4>stdio (local)</h4>
+							<ul>
+								<li>Host starts the server as a local process</li>
+								<li>Runs in the user's environment, single user</li>
+								<li>Auth is outside the spec (env vars, local credentials)</li>
+							</ul>
+						</div>
+						<div class="card highlight">
+							<h4>Streamable HTTP (remote)</h4>
+							<ul>
+								<li>Server runs somewhere else, many users and clients</li>
+								<li>MCP authorization applies (OAuth 2.1)</li>
+								<li>Today's demo: <code>http://localhost:5080/mcp</code></li>
+							</ul>
+						</div>
+					</div>
+					<aside class="notes">
+						stdio: local process, the user's own environment, auth not covered by the spec.
+						Streamable HTTP: remote, multi-user, and this is where the MCP authorization spec applies. The demo uses HTTP.
+					</aside>
+				</section>
+
+				<!-- 7 -->
+				<section>
+					<h3>Deployment variants</h3>
+					<svg class="diagram" viewBox="0 0 960 330" width="960" height="330" role="img" aria-label="Three deployment variants: in-process, sidecar, local stdio wrapper">
+						<defs>
+							<marker id="arr7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333" /></marker>
+						</defs>
+						<!-- a) in-process -->
+						<rect x="10" y="10" width="300" height="230" rx="12" fill="#fdf0ee" stroke="#c0392b" stroke-width="3" />
+						<text x="160" y="42" font-size="22" font-weight="bold" text-anchor="middle">a) In-process</text>
+						<text x="160" y="66" font-size="16" text-anchor="middle" fill="#c0392b" font-weight="bold">the demo</text>
+						<rect x="30" y="85" width="120" height="55" rx="6" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="90" y="118" font-size="18" text-anchor="middle">REST API</text>
+						<rect x="170" y="85" width="120" height="55" rx="6" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="230" y="118" font-size="18" text-anchor="middle">MCP server</text>
+						<rect x="30" y="160" width="260" height="55" rx="6" fill="#fff" stroke="#888" stroke-width="2" />
+						<text x="160" y="193" font-size="18" text-anchor="middle">shared F# domain</text>
+						<!-- b) sidecar -->
+						<rect x="330" y="10" width="300" height="230" rx="12" fill="#f4f6f8" stroke="#888" stroke-width="2" />
+						<text x="480" y="42" font-size="22" font-weight="bold" text-anchor="middle">b) Sidecar</text>
+						<rect x="350" y="85" width="120" height="55" rx="6" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="410" y="118" font-size="18" text-anchor="middle">MCP server</text>
+						<rect x="490" y="160" width="120" height="55" rx="6" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="550" y="193" font-size="18" text-anchor="middle">REST API</text>
+						<line x1="440" y1="140" x2="500" y2="158" stroke="#333" stroke-width="2" marker-end="url(#arr7)" />
+						<text x="420" y="190" font-size="16" text-anchor="middle" fill="#666">HTTP</text>
+						<!-- c) local stdio wrapper -->
+						<rect x="650" y="10" width="300" height="230" rx="12" fill="#f4f6f8" stroke="#888" stroke-width="2" />
+						<text x="800" y="42" font-size="22" font-weight="bold" text-anchor="middle">c) Local stdio wrapper</text>
+						<rect x="665" y="70" width="270" height="85" rx="6" fill="#fff" stroke="#888" stroke-width="2" stroke-dasharray="6 4" />
+						<text x="680" y="92" font-size="15" fill="#666">dev machine</text>
+						<rect x="740" y="98" width="140" height="45" rx="6" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="810" y="127" font-size="17" text-anchor="middle">MCP (stdio)</text>
+						<rect x="740" y="180" width="140" height="45" rx="6" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="810" y="209" font-size="17" text-anchor="middle">REST API</text>
+						<line x1="810" y1="143" x2="810" y2="176" stroke="#333" stroke-width="2" marker-end="url(#arr7)" />
+						<!-- trade-offs -->
+						<text x="160" y="272" font-size="16" text-anchor="middle">+ no extra hop, reuses domain</text>
+						<text x="160" y="296" font-size="16" text-anchor="middle">− needs access to the API code</text>
+						<text x="480" y="272" font-size="16" text-anchor="middle">+ API untouched, deploy separately</text>
+						<text x="480" y="296" font-size="16" text-anchor="middle">− extra hop, REST shapes leak in</text>
+						<text x="800" y="272" font-size="16" text-anchor="middle">+ zero server changes</text>
+						<text x="800" y="296" font-size="16" text-anchor="middle">− runs per user, auth is DIY</text>
+					</svg>
+					<aside class="notes">
+						Three ways to add MCP to an existing API. (a) in-process next to the API, sharing the domain: this is the demo.
+						(b) sidecar calling REST: API untouched, but an extra hop. (c) local stdio wrapper over REST: quick, but per machine and auth is on you.
+						Only (a) is in the demo; (b) and (c) are slide-only.
+					</aside>
+				</section>
+
+				<!-- 8 -->
+				<section>
+					<h3>Demo domain: terms</h3>
+					<table class="terms">
+						<thead><tr><th>Term</th><th>Meaning</th><th>In the demo</th></tr></thead>
+						<tbody>
+							<tr><td><strong>Transport Order</strong></td><td>A load to move from A to B in a time window, with a cargo type and a required Trailer type</td><td><code>ORD-103</code> Poznan → Berlin, tomorrow 08–16, Dangerous goods, Curtainsider</td></tr>
+							<tr><td><strong>Dispatch</strong></td><td>One Driver + one Tractor unit + one Trailer assigned to a Transport Order; at most one per order</td><td><code>DSP-003</code>: Marek, <code>TRK-01</code>, <code>TRL-01</code> on <code>ORD-101</code></td></tr>
+							<tr><td><strong>Dispatch option</strong></td><td>A combination that passes every rule for an order</td><td><code>ORD-103</code>: Lukasz + <code>TRK-02</code> + <code>TRL-02</code> (the only one)</td></tr>
+							<tr><td><strong>Driver</strong></td><td>Drives the truck; holds a C+E licence, a Driver CPC and maybe an ADR certificate</td><td>Lukasz Nowak (<code>D-01</code>, has ADR), Marek Kowalski (<code>D-02</code>)</td></tr>
+							<tr><td><strong>Tractor unit</strong></td><td>The truck that pulls a Trailer: Standard or Low deck</td><td><code>TRK-02</code> Standard, <code>TRK-04</code> Low deck</td></tr>
+							<tr><td><strong>Trailer</strong></td><td>The cargo unit: Curtainsider (soft sides), Mega (extra height), Reefer (refrigerated)</td><td><code>TRL-02</code> Curtainsider, <code>TRL-03</code> Mega, <code>TRL-05</code> Reefer</td></tr>
+							<tr><td><strong>Absence</strong></td><td>Sick leave or holiday; the Driver counts as busy</td><td>Tomasz Wojcik (<code>D-05</code>): sick leave from tomorrow</td></tr>
+							<tr><td><strong>Dispatcher</strong></td><td>Who created a Dispatch; also the role needed to dispatch</td><td><code>anonymous</code> (no auth), <code>alice</code> (OAuth)</td></tr>
+						</tbody>
+					</table>
+					<aside class="notes">
+						Point at the "In the demo" column: these exact IDs and names come back in the live scenes.
+						Don't read every row; read Transport Order and Dispatch, then let the audience scan the rest. The table stays as a reference for questions.
+					</aside>
+				</section>
+
+				<!-- 9 -->
+				<section>
+					<h3>Demo domain: rules</h3>
+					<svg class="diagram" viewBox="0 0 900 130" width="900" height="130" role="img" aria-label="Transport Order is fulfilled by a Dispatch of Driver, Tractor unit and Trailer">
+						<defs>
+							<marker id="arr9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333" /></marker>
+						</defs>
+						<rect x="10" y="35" width="200" height="60" rx="8" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="110" y="72" font-size="22" text-anchor="middle">Transport Order</text>
+						<line x1="210" y1="65" x2="290" y2="65" stroke="#333" stroke-width="2" marker-end="url(#arr9)" />
+						<rect x="295" y="35" width="140" height="60" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="3" />
+						<text x="365" y="72" font-size="22" text-anchor="middle">Dispatch</text>
+						<text x="465" y="74" font-size="28" text-anchor="middle">=</text>
+						<rect x="495" y="35" width="110" height="60" rx="8" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="550" y="72" font-size="22" text-anchor="middle">Driver</text>
+						<text x="625" y="74" font-size="28" text-anchor="middle">+</text>
+						<rect x="645" y="35" width="130" height="60" rx="8" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="710" y="72" font-size="20" text-anchor="middle">Tractor unit</text>
+						<text x="795" y="74" font-size="28" text-anchor="middle">+</text>
+						<rect x="810" y="35" width="85" height="60" rx="8" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="852" y="72" font-size="20" text-anchor="middle">Trailer</text>
+					</svg>
+					<ol class="small">
+						<li>No overlapping windows for driver, tractor or trailer; Absence counts as busy.</li>
+						<li>C+E and Driver CPC valid during the order window.</li>
+						<li>Dangerous goods require ADR certificate.</li>
+						<li>Mega trailer requires Low deck tractor.</li>
+						<li>Trailer type matches the order's required type.</li>
+					</ol>
+					<p class="small muted">C+E: licence for a truck with a heavy trailer · Driver CPC: EU professional qualification for drivers · ADR: certificate for dangerous goods by road · Low deck: lower tractor unit for tall Mega trailers</p>
+					<p class="demo-marker">Live: scenes 1–5</p>
+					<aside class="notes">
+						A Transport Order is fulfilled by a Dispatch: one Driver + one Tractor unit + one Trailer.
+						Explain the qualifications line only if asked; full definitions are in cheatsheet.md.
+						Read the 5 rules once; they come back in scenes 3–5 (ADR in scene 3, overlap in scene 4, the rest in scene 5).
+						LIVE: switch to the Aspire dashboard, scenes 1–5 (see script.md).
+					</aside>
+				</section>
+
+				<!-- ===================== Block B: Auth (slide 10) ===================== -->
+
+				<!-- 10 -->
+				<section>
+					<h3>What MCP adds to OAuth</h3>
+					<svg class="diagram" viewBox="0 0 960 470" width="960" height="470" role="img" aria-label="Sequence: client gets 401, discovers protected resource metadata and authorization server, logs in with PKCE and resource, gets token with audience equal to MCP URL, calls MCP server">
+						<defs>
+							<marker id="arr10" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333" /></marker>
+							<marker id="arr10r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c0392b" /></marker>
+						</defs>
+						<!-- lane heads -->
+						<rect x="20" y="5" width="240" height="60" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" />
+						<text x="140" y="31" font-size="19" text-anchor="middle" font-weight="bold">Client</text>
+						<text x="140" y="54" font-size="15" text-anchor="middle">VS Code / Inspector</text>
+						<rect x="360" y="5" width="240" height="60" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" />
+						<text x="480" y="31" font-size="19" text-anchor="middle" font-weight="bold">MCP server</text>
+						<text x="480" y="54" font-size="15" text-anchor="middle">Protected Resource</text>
+						<rect x="700" y="5" width="240" height="60" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" />
+						<text x="820" y="31" font-size="19" text-anchor="middle" font-weight="bold">Keycloak</text>
+						<text x="820" y="54" font-size="15" text-anchor="middle">Authorization Server</text>
+						<line x1="140" y1="65" x2="140" y2="465" stroke="#aaa" stroke-width="2" stroke-dasharray="5 5" />
+						<line x1="480" y1="65" x2="480" y2="465" stroke="#aaa" stroke-width="2" stroke-dasharray="5 5" />
+						<line x1="820" y1="65" x2="820" y2="465" stroke="#aaa" stroke-width="2" stroke-dasharray="5 5" />
+						<!-- 1 -->
+						<line x1="140" y1="100" x2="476" y2="100" stroke="#333" stroke-width="2" marker-end="url(#arr10)" />
+						<text x="310" y="92" font-size="16" text-anchor="middle">1. POST /mcp (no token)</text>
+						<!-- 2 -->
+						<line x1="480" y1="140" x2="144" y2="140" stroke="#333" stroke-width="2" marker-end="url(#arr10)" />
+						<text x="310" y="132" font-size="16" text-anchor="middle">2. 401 + WWW-Authenticate (resource_metadata)</text>
+						<!-- 3 MCP-specific -->
+						<line x1="140" y1="185" x2="476" y2="185" stroke="#c0392b" stroke-width="3" marker-end="url(#arr10r)" />
+						<text x="310" y="168" font-size="16" text-anchor="middle" fill="#c0392b" font-weight="bold">3. GET /.well-known/oauth-protected-resource</text>
+						<text x="310" y="205" font-size="14" text-anchor="middle" fill="#c0392b">PRM: authorization_servers, scopes_supported</text>
+						<!-- 4 -->
+						<line x1="140" y1="245" x2="816" y2="245" stroke="#333" stroke-width="2" marker-end="url(#arr10)" />
+						<text x="480" y="237" font-size="16" text-anchor="middle">4. GET AS metadata (/.well-known/openid-configuration)</text>
+						<!-- 5 MCP-specific -->
+						<line x1="140" y1="300" x2="816" y2="300" stroke="#c0392b" stroke-width="3" marker-end="url(#arr10r)" />
+						<text x="480" y="292" font-size="16" text-anchor="middle" fill="#c0392b" font-weight="bold">5. Browser login: PKCE (S256, mandatory) + resource = MCP URL</text>
+						<!-- 6 MCP-specific -->
+						<line x1="820" y1="350" x2="144" y2="350" stroke="#c0392b" stroke-width="3" marker-end="url(#arr10r)" />
+						<text x="480" y="342" font-size="16" text-anchor="middle" fill="#c0392b" font-weight="bold">6. Access token, aud = http://localhost:5080/mcp</text>
+						<!-- 7 -->
+						<line x1="140" y1="405" x2="476" y2="405" stroke="#333" stroke-width="2" marker-end="url(#arr10)" />
+						<text x="310" y="397" font-size="16" text-anchor="middle">7. POST /mcp + Bearer token</text>
+						<text x="480" y="445" font-size="15" text-anchor="middle" fill="#666">server validates iss + aud (rejects tokens for other resources)</text>
+					</svg>
+					<p class="small"><span class="accent"><strong>Red</strong></span> = what MCP adds: PRM discovery, audience binding, mandatory PKCE</p>
+					<p class="demo-marker">Live: scene 6</p>
+					<aside class="notes">
+						Roles: Keycloak = Authorization Server (issues tokens), MCP server = Protected Resource (checks tokens), VS Code / Inspector = client.
+						Red steps, in plain words: (3) the 401 tells the client where to log in, so nobody configures it by hand; (5+6) the token is stamped "valid only for this MCP server" (aud), so it can't be replayed elsewhere; (5) PKCE proves that whoever swaps the login code for a token is the same app that started the login.
+						A static bearer header (or an API key) is not MCP authorization: no discovery, no audience binding, no per-user identity.
+						Keycloak is one of many authorization servers. With Entra ID the protocol is the same; configuration, claim format (audience, roles) and client registration differ.
+						Details and analogies: cheatsheet.md. LIVE: restart in OAuth, scene 6 (401, PRM, bob vs alice).
+					</aside>
+				</section>
+
+				<!-- ===================== Block C: Closing (slides 11-14) ===================== -->
+
+				<!-- 11 -->
+				<section>
+					<h3>Demo shortcuts vs production</h3>
+					<table>
+						<thead><tr><th>In the demo</th><th>In production</th></tr></thead>
+						<tbody>
+							<tr><td>http</td><td>HTTPS (spec: the authorization server MUST use HTTPS)</td></tr>
+							<tr><td>REST stays open</td><td>Different adapter: protect it separately</td></tr>
+							<tr><td>Pre-registered clients (<code>vscode</code>, <code>mcp-inspector</code>)</td><td>CIMD (DCR is deprecated): public MCP servers don't know their clients in advance</td></tr>
+							<tr><td>In-memory store (reseeds on restart)</td><td>Real persistence</td></tr>
+						</tbody>
+					</table>
+					<aside class="notes">
+						Now that you have seen it: the shortcuts we took on purpose. http on localhost; only /mcp is protected, REST is another adapter;
+						clients are pre-registered in Keycloak, a public server would need CIMD (or the deprecated DCR); data lives in memory.
+					</aside>
+				</section>
+
+				<!-- 12 -->
+				<section>
+					<h3>Why MCP?</h3>
+					<ul>
+						<li><strong>Discovery</strong>: schemas and descriptions, no hand-written instructions</li>
+						<li><strong>Curated surface</strong> + per-tool approval</li>
+						<li><strong>Standard auth</strong>: PRM discovery, per-user identity, roles</li>
+						<li><strong>Task-shaped interface</strong>: fewer calls, less context, readable domain errors</li>
+						<li><strong>Portability</strong> across clients (VS Code, Inspector, others)</li>
+					</ul>
+					<p class="small muted">Concession: 1:1 wrappers add little (<code>get_drivers</code>).</p>
+					<p class="small">vs skills + scripts: different layers; MCP when you need identity, shared or remote access</p>
+					<aside class="notes">
+						Answer the hook from slide 2: yes, Copilot can curl the API; MCP adds discovery, a curated and approved surface, standard auth, and a task-shaped interface.
+						Concede: a 1:1 wrapper like get_drivers added little (scene 3 showed it). If asked about skills + scripts: open appendix A1.
+					</aside>
+				</section>
+
+				<!-- 13 -->
+				<section>
+					<h3>What's next</h3>
+					<ul>
+						<li><strong>Prompts</strong>: templates the user picks<br /><span class="small muted">e.g. <code>/plan-tomorrow</code> with <code>logistics://rules</code> attached</span></li>
+						<li><strong>Elicitation</strong>: the server asks the user mid-call<br /><span class="small muted">e.g. dispatching <code>ORD-106</code>: “<code>TRL-01</code> or <code>TRL-02</code>?”</span></li>
+						<li><strong>CIMD</strong> instead of pre-registered clients<br /><span class="small muted">client ID = URL of the client's own metadata (DCR: deprecated)</span></li>
+					</ul>
+					<p class="small muted">Spec 2026-07-28: Sampling and Roots are deprecated</p>
+					<aside class="notes">
+						Not covered today. Prompts: the third server primitive, chosen by the user (slash command). Elicitation: the server needs more from the user mid-call (form, or a URL for secrets).
+						CIMD: how a public server meets clients it does not know; DCR was the older way and is deprecated in 2026-07-28.
+						If asked about sampling (server borrows the client's model) or roots (client shares folders): both deprecated in 2026-07-28. Details: cheatsheet.md.
+					</aside>
+				</section>
+
+				<!-- 14 -->
+				<section>
+					<h3>Resources</h3>
+					<ul class="small">
+						<li>This Topic: <a href="https://github.com/pkaz13/KnowledgeSharingSessions/tree/master/McpServerDotNet">KnowledgeSharingSessions/McpServerDotNet</a>, every demo prompt in <code>prompts.md</code></li>
+						<li>MCP specification: <a href="https://modelcontextprotocol.io/specification/2026-07-28">modelcontextprotocol.io/specification</a></li>
+						<li>MCP C# SDK: <a href="https://github.com/modelcontextprotocol/csharp-sdk">github.com/modelcontextprotocol/csharp-sdk</a></li>
+						<li>Aspire: <a href="https://aspire.dev">aspire.dev</a></li>
+						<li>J. Tower, NDC Oslo 2026: <a href="https://ndcoslo.com/agenda/old-api-new-tricks-add-mcp-to-existing-dotnet-rest-endpoints">Old API, New Tricks: Add MCP to Existing .NET REST Endpoints</a></li>
+					</ul>
+					<p class="demo-marker">Q&amp;A</p>
+					<aside class="notes">
+						Point to prompts.md: every prompt from the demo, in scene order, to try yourself.
+						Then Q&amp;A. If asked "why not skills + scripts?": open the hidden appendix A1 with slides.html?showHiddenSlides=true#/a1 (it is removed from the deck otherwise).
+					</aside>
+				</section>
+
+				<!-- ===================== Appendix (hidden; open with ?showHiddenSlides=true#/a1 or #/a2) ===================== -->
+
+				<!-- A1 -->
+				<section id="a1" data-visibility="hidden">
+					<h3>A1. MCP vs skills + scripts</h3>
+					<ul class="small">
+						<li><strong>Token cost: conceded.</strong> Skills load only <code>name</code>/<code>description</code> upfront; MCP clients load all tool definitions every turn. Small with 5 tools, grows with many servers.</li>
+						<li><strong>Different layers.</strong> A skill is knowledge and procedure; MCP is access to a system. The script still calls the API.</li>
+						<li><strong>Where skill + script loses:</strong> identity and roles (key in env, no per-user login); distribution (runs on every machine vs deployed once); surface and approval (a shell command vs <code>dispatch_order</code>).</li>
+						<li><strong>Honest:</strong> portability is weaker now; Agent Skills are an open standard.</li>
+						<li><strong>Rule of thumb:</strong> local, single-user, token budget matters → skill + script. Shared, remote, many users, identity and roles → MCP. Often both.</li>
+					</ul>
+					<aside class="notes">
+						Only if asked. Concede tokens first: skills use progressive disclosure; Anthropic itself proposes "code execution with MCP" (150k to 2k tokens in their example, at the cost of a sandbox).
+						Then: different layers; the script is the "agent calls REST" path again. Losses: identity (bob vs alice), distribution, approval of a domain operation.
+						Close: often both, the skill teaches the procedure and MCP provides access.
+					</aside>
+				</section>
+
+				<!-- A2 -->
+				<section id="a2" data-visibility="hidden">
+					<h3>A2. Project architecture</h3>
+					<svg class="diagram" viewBox="0 0 960 500" width="960" height="500" role="img" aria-label="Aspire AppHost runs logistics-api and Keycloak. Clients call REST or /mcp; both adapters use the pure F# domain and one in-memory store">
+						<defs>
+							<marker id="arrA2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333" /></marker>
+						</defs>
+						<!-- clients -->
+						<rect x="50" y="10" width="240" height="50" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" />
+						<text x="170" y="42" font-size="18" text-anchor="middle">logistics.http (REST Client)</text>
+						<rect x="320" y="10" width="180" height="50" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" />
+						<text x="410" y="42" font-size="18" text-anchor="middle">VS Code + Copilot</text>
+						<rect x="520" y="10" width="180" height="50" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" />
+						<text x="610" y="42" font-size="18" text-anchor="middle">MCP Inspector</text>
+						<!-- AppHost -->
+						<rect x="10" y="95" width="940" height="400" rx="12" fill="#fafafa" stroke="#888" stroke-width="2" stroke-dasharray="8 5" />
+						<text x="480" y="485" font-size="16" text-anchor="middle" fill="#666">Aspire AppHost (C#): starts everything; the launch profile picks the auth mode</text>
+						<!-- logistics-api -->
+						<rect x="30" y="130" width="680" height="330" rx="10" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="370" y="450" font-size="16" text-anchor="middle" font-weight="bold">logistics-api: F#, one process, http://localhost:5080</text>
+						<rect x="50" y="160" width="250" height="100" rx="6" fill="#fff" stroke="#333" stroke-width="2" />
+						<text x="175" y="188" font-size="18" text-anchor="middle" font-weight="bold">REST adapter</text>
+						<text x="175" y="212" font-size="15" text-anchor="middle">Rest.fs: /drivers, /orders, /dispatches</text>
+						<text x="175" y="236" font-size="15" text-anchor="middle" fill="#666">open in every mode</text>
+						<rect x="320" y="160" width="370" height="40" rx="6" fill="#fdf0ee" stroke="#c0392b" stroke-width="2" />
+						<text x="505" y="186" font-size="15" text-anchor="middle">McpAuth.fs: guards /mcp (None | ApiKey | OAuth)</text>
+						<rect x="320" y="210" width="370" height="50" rx="6" fill="#fff" stroke="#c0392b" stroke-width="3" />
+						<text x="505" y="232" font-size="18" text-anchor="middle" font-weight="bold">MCP adapter</text>
+						<text x="505" y="252" font-size="15" text-anchor="middle">Mcp.fs: 5 tools + logistics://rules</text>
+						<rect x="50" y="285" width="640" height="60" rx="6" fill="#fff" stroke="#888" stroke-width="2" />
+						<text x="370" y="312" font-size="18" text-anchor="middle" font-weight="bold">Domain.fs: pure F# rules, no I/O</text>
+						<text x="370" y="334" font-size="15" text-anchor="middle">dispatch options, dispatch, schedule; same code for REST and MCP</text>
+						<rect x="50" y="365" width="640" height="60" rx="6" fill="#fff" stroke="#888" stroke-width="2" />
+						<text x="370" y="392" font-size="18" text-anchor="middle" font-weight="bold">Store.fs: in-memory Dispatch board</text>
+						<text x="370" y="414" font-size="15" text-anchor="middle">Seed.fs fills it on every start, dates relative to startup</text>
+						<!-- Keycloak, dashboard -->
+						<rect x="730" y="160" width="205" height="100" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" stroke-dasharray="6 4" />
+						<text x="832" y="188" font-size="18" text-anchor="middle" font-weight="bold">Keycloak :8080</text>
+						<text x="832" y="212" font-size="15" text-anchor="middle">realm mcp, alice / bob</text>
+						<text x="832" y="236" font-size="15" text-anchor="middle" fill="#666">OAuth profile only</text>
+						<rect x="730" y="365" width="205" height="60" rx="8" fill="#f4f6f8" stroke="#333" stroke-width="2" />
+						<text x="832" y="392" font-size="17" text-anchor="middle" font-weight="bold">Dashboard :15080</text>
+						<text x="832" y="414" font-size="15" text-anchor="middle">logs, traces, health</text>
+						<!-- arrows -->
+						<line x1="170" y1="60" x2="170" y2="156" stroke="#333" stroke-width="2" marker-end="url(#arrA2)" />
+						<line x1="410" y1="60" x2="410" y2="156" stroke="#333" stroke-width="2" marker-end="url(#arrA2)" />
+						<line x1="610" y1="60" x2="610" y2="156" stroke="#333" stroke-width="2" marker-end="url(#arrA2)" />
+						<text x="420" y="85" font-size="14" text-anchor="start" fill="#666">POST /mcp</text>
+						<text x="180" y="85" font-size="14" text-anchor="start" fill="#666">GET / POST</text>
+						<line x1="700" y1="50" x2="800" y2="156" stroke="#333" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrA2)" />
+						<text x="790" y="85" font-size="14" text-anchor="start" fill="#666">browser login</text>
+						<line x1="690" y1="180" x2="726" y2="180" stroke="#333" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrA2)" />
+						<line x1="175" y1="260" x2="175" y2="281" stroke="#333" stroke-width="2" marker-end="url(#arrA2)" />
+						<line x1="505" y1="260" x2="505" y2="281" stroke="#333" stroke-width="2" marker-end="url(#arrA2)" />
+						<line x1="370" y1="345" x2="370" y2="361" stroke="#333" stroke-width="2" marker-end="url(#arrA2)" />
+					</svg>
+					<aside class="notes">
+						Only if asked about the project structure. Two adapters (REST, MCP) over one pure F# domain and one in-memory store: ports and adapters.
+						McpAuth guards only /mcp; with OAuth it checks Keycloak's tokens (signature keys fetched from Keycloak). The AppHost starts the API and, in the OAuth profile, Keycloak.
+						Where to find what: README "Architecture" and cheatsheet.md.
+					</aside>
+				</section>
+			</div>
+		</div>
+
+		<script src="reveal.js/reveal.js"></script>
+		<script src="reveal.js/plugin/notes.js"></script>
+		<script src="reveal.js/plugin/highlight.js"></script>
+		<script>
+			Reveal.initialize({
+				hash: true,
+				plugins: [RevealNotes, RevealHighlight],
+			});
+		</script>
+	</body>
+</html>
