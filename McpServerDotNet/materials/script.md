@@ -4,21 +4,22 @@
 > Speaker notes w `slides.html` to krótkie podpowiedzi do slajdów; ten plik prowadzi przez całość, łącznie z demo na żywo.
 > Prompty **nie są tu kopiowane**: każda scena linkuje do swojej sekcji w [`prompts.md`](../prompts.md), stamtąd się je wkleja (publiczność może je potem powtórzyć).
 
-**Czas:** ~33 min planowo (31,5 min bez sceny 7), limit 45 min, reszta to bufor; Q&A po części głównej.
+**Czas:** ~31 min planowo, limit 45 min, reszta to bufor; Q&A po części głównej.
+
+**Ściąga:** [`cheatsheet.md`](cheatsheet.md) (po angielsku): architektura projektu, OAuth w MCP krok po kroku, Keycloak, słownik skrótów, „What's next”. Do nauki przed Session i do podglądu w Q&A.
 
 | Sekcja | Czas | Narastająco |
 |---|---|---|
-| 2. Blok A, slajdy 1–8 | 6,5 min | 6,5 |
-| 3. Sceny 1–2 | 4 min | 10,5 |
-| 4. Scena 3 | 5 min | 15,5 |
-| 5. Scena 4 | 4 min | 19,5 |
-| 6. Scena 5 | 2 min | 21,5 |
-| 7. Blok B, slajdy 9–10 | 2,5 min | 24 |
-| 8. Scena 6 | 5 min | 29 |
-| 9. Scena 7 (opcjonalna, pierwsza do wycięcia) | 2 min | 31 |
-| 10. Blok C, slajdy 11–14 | 2,5 min | 33,5 |
+| 2. Blok A, slajdy 1–9 | 7 min | 7 |
+| 3. Sceny 1–2 | 4 min | 11 |
+| 4. Scena 3 | 5 min | 16 |
+| 5. Scena 4 | 4 min | 20 |
+| 6. Scena 5 | 2 min | 22 |
+| 7. Blok B, slajd 10 | 1,5 min | 23,5 |
+| 8. Scena 6 | 5 min | 28,5 |
+| 9. Blok C, slajdy 11–14 | 2,5 min | 31 |
 
-Zasada cięcia: jeśli po scenie 6 zegar pokazuje więcej niż ~30 min, scenę 7 pomijam i idę od razu do bloku C.
+Zasada cięcia: jeśli po scenie 6 zegar pokazuje więcej niż ~33 min, slajd 11 skracam do jednego zdania (fallback w sekcji 9).
 
 Format każdej sceny: **Mówię** (co powiedzieć), **Klikam / wpisuję** (co zrobić), **Oczekiwany wynik**, **Fallback**.
 
@@ -27,11 +28,10 @@ Format każdej sceny: **Mówię** (co powiedzieć), **Klikam / wpisuję** (co zr
 Porty: API `5080`, dashboard Aspire `15080`, Keycloak `8080` (tylko `OAuth`), MCP Inspector `6274`.
 
 - [ ] Docker działa. Kontener Keycloak **już utworzony** (persistent): raz uruchomić AppHost z `--launch-profile OAuth`, poczekać aż Keycloak wstanie, zatrzymać AppHost. Kontener zostaje, więc w scenie 6 start jest szybki.
-- [ ] Sekret ApiKey ustawiony (scena 7): `dotnet user-secrets --project McpServerDotNet.AppHost set Parameters:mcp-api-key <klucz>`; klucz pod ręką do wklejenia.
 - [ ] AppHost na `None` uruchomiony **tuż przed** Session (świeży seed, "tomorrow" = data UTC po starcie): `dotnet run --project McpServerDotNet.AppHost --launch-profile None` w folderze `McpServerDotNet`. Dashboard otwarty na http://localhost:15080 (link z loginem w konsoli).
 - [ ] Opcjonalnie: `DEMO_API_URL=http://localhost:5080 DEMO_API_MODE=None dotnet test --filter "FullyQualifiedName~ArtefactTests"` — sprawdza `logistics.http` i `prompts.md` na żywym API. **Uwaga:** zapisuje dispatch i go anuluje; po teście zrestartować AppHost, żeby seed był czysty.
 - [ ] MCP Inspector otwarty (`npx @modelcontextprotocol/inspector`), transport Streamable HTTP, URL `http://localhost:5080/mcp`, jeszcze niepołączony.
-- [ ] VS Code otwarty na folderze `McpServerDotNet` (`.vscode/mcp.json`: serwery `logistics` i `logistics-api-key`). Serwer `logistics` uruchomiony, `logistics-api-key` zatrzymany.
+- [ ] VS Code otwarty na folderze `McpServerDotNet` (`.vscode/mcp.json`). Serwer `logistics` uruchomiony; `logistics-api-key` (profil `ApiKey`, nie pokazuję go) zatrzymany.
 - [ ] Copilot Chat w trybie agent, **model przypięty** (ten sam co na próbie). Tool picker zresetowany: wszystkie narzędzia `logistics` włączone.
 - [ ] Wylogowany z Keycloak: w VS Code (menu Accounts) i w przeglądarce (brak sesji SSO alice/bob), żeby logowania w scenie 6 były widoczne i na właściwego użytkownika.
 - [ ] `prompts.md` i `logistics.http` otwarte w zakładkach; `slides.html` w przeglądarce, widok prowadzącego (`S`).
@@ -40,7 +40,7 @@ Porty: API `5080`, dashboard Aspire `15080`, Keycloak `8080` (tylko `OAuth`), MC
 
 Do sprawdzenia na próbie (zależy od modelu i wersji VS Code): czy model faktycznie wywołuje `dispatch_order` w wymuszonym nakładaniu (scena 4); czy VS Code automatycznie zatwierdza narzędzia z adnotacją `ReadOnly`; logowanie alice (Copilot) i bob (Inspector).
 
-## 2. Blok A, slajdy 1–8 (~6,5 min)
+## 2. Blok A, slajdy 1–9 (~7 min)
 
 **Mówię:**
 
@@ -51,9 +51,10 @@ Do sprawdzenia na próbie (zależy od modelu i wersji VS Code): czy model faktyc
 - Slajd 5 „Server primitives” (1:00): podział według tego, kto steruje: tools wywołuje model, resources dołącza użytkownik/aplikacja, prompts wywołuje użytkownik. Zapowiadam dzisiejszą powierzchnię: **5 tools + 1 resource** (`logistics://rules`). Prompts dopiero w „What's next”.
 - Slajd 6 „Transports: local vs remote” (1:00): stdio = lokalny proces w środowisku użytkownika, auth poza specyfikacją. Streamable HTTP = zdalnie, wielu użytkowników, tu obowiązuje autoryzacja MCP (OAuth 2.1). Demo: HTTP na `http://localhost:5080/mcp`.
 - Slajd 7 „Deployment variants” (1:00): trzy sposoby dodania MCP do istniejącego API: (a) in-process obok API, wspólna domena F# — **to jest demo**; (b) sidecar wołający REST — API nietknięte, ale dodatkowy hop i kształty REST przeciekają; (c) lokalny wrapper stdio — zero zmian po stronie serwera, ale per użytkownik i auth na własną rękę. (b) i (c) tylko na slajdzie.
-- Slajd 8 „Demo domain” (1:00): Transport Order realizuje Dispatch = Driver + Tractor unit + Trailer. Czytam **5 reguł** raz, powoli: brak nakładania okien (Absence = zajęty); ważne C+E i Driver CPC; Dangerous goods → ADR; Mega → Low deck; typ naczepy zgodny z zamówieniem. „Wrócą w scenach 3–5: ADR w trzeciej, nakładanie w czwartej, reszta w piątej.”
+- Slajd 8 „Demo domain: terms” (0:45): tabela pojęć z przykładami z seeda. Czytam tylko dwa wiersze: Transport Order (np. ORD-103 Poznań → Berlin, jutro 08–16, Dangerous goods) i Dispatch (Driver + Tractor unit + Trailer, np. DSP-003: Marek na ORD-101). Reszty nie czytam: „Te ID i nazwiska zobaczycie zaraz w demo; tabela zostaje jako ściąga.”
+- Slajd 9 „Demo domain: rules” (0:45): Transport Order realizuje Dispatch = Driver + Tractor unit + Trailer. Czytam **5 reguł** raz, powoli: brak nakładania okien (Absence = zajęty); ważne C+E i Driver CPC; Dangerous goods → ADR; Mega → Low deck; typ naczepy zgodny z zamówieniem. „Wrócą w scenach 3–5: ADR w trzeciej, nakładanie w czwartej, reszta w piątej.” Linia z uprawnieniami (C+E, CPC, ADR, Low deck) pod regułami jest dla widowni; czytam ją tylko, gdy ktoś pyta.
 
-**Klikam / wpisuję:** strzałka w prawo przez slajdy 1–8. Na slajdzie 8 znacznik „Live: scenes 1–5” → przełączam się na dashboard Aspire.
+**Klikam / wpisuję:** strzałka w prawo przez slajdy 1–9. Na slajdzie 9 znacznik „Live: scenes 1–5” → przełączam się na dashboard Aspire.
 
 **Fallback:** jeśli start się opóźnił, skracam slajdy 6–7 do jednego zdania każdy (pozostaje informacja: demo = HTTP, in-process).
 
@@ -139,7 +140,7 @@ Prompt: [prompts.md, Scene 5](../prompts.md#scene-5-context-attached-by-the-user
 **Mówię:**
 
 - „Do tej pory model sam wybierał narzędzia. Teraz to **ja** dołączam resource: reguły w markdown. Tools wywołuje model, resources dołącza użytkownik” (slajd 5).
-- Przechodzę przez każdą pułapkę w planie, nawiązując do reguł ze slajdu 8: ORD-104 to Mega, a oba ciągniki Low deck są już zajęte; Piotr Zielinski ma przeterminowany Driver CPC; Tomasz Wojcik jest jutro na zwolnieniu (Absence = zajęty).
+- Przechodzę przez każdą pułapkę w planie, nawiązując do reguł ze slajdu 9: ORD-104 to Mega, a oba ciągniki Low deck są już zajęte; Piotr Zielinski ma przeterminowany Driver CPC; Tomasz Wojcik jest jutro na zwolnieniu (Absence = zajęty).
 
 **Klikam / wpisuję:** Add Context → MCP Resources → `logistics://rules`; widać załącznik w polu czatu. Wklejam prompt planowania z `prompts.md`.
 
@@ -150,17 +151,21 @@ Prompt: [prompts.md, Scene 5](../prompts.md#scene-5-context-attached-by-the-user
 - Brak „MCP Resources” w Add Context: pokazuję resource w Inspectorze (Resources → `logistics://rules` → Read) i wklejam prompt bez załącznika; model i tak dojdzie do pułapek przez `find_dispatch_options`, ale kontrast „dołączone przez użytkownika” opowiadam słownie.
 - Model pominie którąś pułapkę: dopytuję „Why can't Piotr Zielinski or Tomasz Wojcik take any order tomorrow?”, albo pokazuję `logistics.http` „Dispatch options for ORD-104 (Mega): no option, both Low deck tractor units are dispatched”.
 
-## 7. Blok B, slajdy 9–10 (~2,5 min)
+## 7. Blok B, slajd 10 (~1,5 min)
 
 **Mówię:**
 
-- Slajd 9 „What MCP adds to OAuth” (1:30): zespół zna OAuth i klucze API, więc pomijam podstawy. Role: Keycloak = Authorization Server (open-source IAM, kontener w Aspire), serwer MCP = Protected Resource, VS Code / Inspector = klient. Pokazuję czerwone kroki, czyli to, co dodaje MCP: **PRM discovery** (klient sam znajduje Authorization Server z odpowiedzi 401, bez konfiguracji), **wiązanie audience** (token przez `resource` / `aud` ważny tylko dla tego serwera MCP), **PKCE obowiązkowe** (S256).
+- Slajd 10 „What MCP adds to OAuth” (1:30). Najpierw role, jednym zdaniem: „Keycloak wydaje tokeny (Authorization Server), nasz serwer MCP je sprawdza (Protected Resource), a VS Code i Inspector to klienci.” Potem trzy czerwone kroki, prostym językiem:
+  - **Krok 3, PRM discovery:** „Klient nic nie wie o Keycloaku. Puka do `/mcp` bez tokena, dostaje 401, a w nagłówku adres. Pod tym adresem serwer mówi: tokeny wydaje ten Keycloak, potrzebujesz scope `mcp:tools`. Zero konfiguracji po stronie klienta.”
+  - **Kroki 5–6, audience:** „Token ma pieczątkę »ważny tylko dla `http://localhost:5080/mcp`« (claim `aud`). Nasz serwer odrzuci token wydany dla innego serwera, a inny serwer odrzuci nasz. Skradziony token nie zadziała gdzie indziej.”
+  - **Krok 5, PKCE:** „Logowanie w przeglądarce kończy się jednorazowym kodem, który klient wymienia na token. PKCE to dowód, że wymienia go ta sama aplikacja, która zaczęła logowanie: klient trzyma sekret u siebie, a do Keycloaka wysłał tylko jego hash. W MCP to obowiązek, metoda S256.”
+  - Zamknięcie: „Statyczny nagłówek z bearerem albo klucz API to nie jest autoryzacja MCP: brak discovery, brak audience, brak tożsamości użytkownika.”
 - Linia o Entra ID tylko jeśli ktoś zapyta (albo jednym zdaniem): „Keycloak to jeden z wielu Authorization Serverów. Z Entra ID protokół jest ten sam; różnią się konfiguracja, format claimów (audience, role) i rejestracja klientów.”
-- Slajd 10 „API key vs OAuth” (1:00): używamy w zespole obu; chodzi o to, kiedy które pasuje do serwera MCP, nie co jest lepsze. Klucz API: wspólny sekret, brak tożsamości per użytkownik, brak ról, proste (service-to-service). OAuth: tożsamość, role (`dispatcher`), discovery prowadzi klienta przez logowanie. „Statyczny nagłówek z bearerem to nie jest autoryzacja MCP.”
+- Analogie i szczegóły na pytania: [`cheatsheet.md`, OAuth in MCP](cheatsheet.md#oauth-in-mcp-step-by-step).
 
-**Klikam / wpisuję:** slajdy 9–10. Na slajdzie 10 znacznik „Live: scene 6 (+ optional scene 7)” → przełączam się na terminal AppHosta.
+**Klikam / wpisuję:** slajd 10. Znacznik „Live: scene 6” → przełączam się na terminal AppHosta.
 
-**Fallback:** brak czasu → slajd 10 w jednym zdaniu („klucz = wspólny sekret, OAuth = tożsamość i role”).
+**Fallback:** brak czasu → tylko krok 3 (PRM), resztę jednym zdaniem: „token ważny tylko dla tego serwera, logowanie zabezpieczone PKCE”.
 
 ## 8. Scena 6: OAuth (~5 min)
 
@@ -169,7 +174,7 @@ Kroki i prompt: [prompts.md, Scene 6](../prompts.md#scene-6-oauth-oauth); żąda
 **Mówię:**
 
 - Przy restarcie: „Przełączam tryb na `OAuth`. Dane są w pamięci, więc seed jest od nowa: dispatch ze sceny 4 zniknął i ORD-103 znowu jest otwarte.” Keycloak już stoi (kontener persistent).
-- `.http`: „Klient bez tokena dostaje 401, a w `WWW-Authenticate` adres metadanych. Tam serwer mówi, kto wydaje tokeny i jakie scope. To jest PRM ze slajdu 9 — klient niczego nie musi mieć skonfigurowanego.” REST zostaje otwarty, chronione jest tylko `/mcp`.
+- `.http`: „Klient bez tokena dostaje 401, a w `WWW-Authenticate` adres metadanych. Tam serwer mówi, kto wydaje tokeny i jakie scope. To jest PRM ze slajdu 10 — klient niczego nie musi mieć skonfigurowanego.” REST zostaje otwarty, chronione jest tylko `/mcp`.
 - Inspector jako bob: „bob jest zalogowany, więc uwierzytelnienie przeszło: narzędzia do odczytu działają. Ale **bob nie widzi `dispatch_order` w ogóle**, nie ma go na liście. bob nie ma roli `dispatcher`. To jest autoryzacja, nie uwierzytelnienie.” (Gdyby ktoś wywołał je po nazwie: błąd JSON-RPC `-32600` „Access forbidden: This tool requires authorization.”)
 - Copilot jako alice: „alice ma rolę `dispatcher`. Ten sam prompt co w scenie 4, a odpowiedź mówi teraz `dispatched by alice` zamiast `anonymous`: tożsamość przechodzi aż do domeny.”
 
@@ -189,38 +194,24 @@ Kroki i prompt: [prompts.md, Scene 6](../prompts.md#scene-6-oauth-oauth); żąda
 - Copilot loguje się jako bob (sesja SSO z kroku 3): wylogowuję w przeglądarce (http://localhost:8080/realms/mcp/account → Sign out), w VS Code Accounts → wyloguj, restart serwera `logistics`.
 - Inspector nie wraca po logowaniu: redirect musi iść na `http://127.0.0.1:6274/oauth/callback` — otwieram Inspector pod `127.0.0.1`, nie `localhost`.
 
-## 9. Scena 7: API key (~2 min, opcjonalna, pierwsza do wycięcia)
-
-Tylko jeśli po scenie 6 jestem przed czasem (zegar poniżej ~30 min). Kroki i prompt: [prompts.md, Scene 7](../prompts.md#scene-7-optional-api-key-apikey).
-
-**Mówię:** „Dla porównania klucz API. VS Code pyta o klucz w polu hasła, klucz nie leży w repo. Odpowiedź: `dispatched by api-key`. Jeden wspólny klucz: brak tożsamości, brak ról, każdy z kluczem może wszystko.”
-
-**Klikam / wpisuję:**
-
-1. Terminal: Ctrl+C, `dotnet run --project McpServerDotNet.AppHost --launch-profile ApiKey`.
-2. VS Code: zatrzymuję serwer `logistics`, startuję `logistics-api-key` → wklejam klucz w polu hasła.
-3. Nowy czat, wklejam prompt ze Scene 7 w `prompts.md` → **Allow**.
-
-**Oczekiwany wynik:** „Dispatched ORD-103 as DSP-005: … dispatched by api-key.” (seed znów świeży po restarcie).
-
-**Fallback:** Aspire pyta o parametr `mcp-api-key` w dashboardzie (sekret nieustawiony) → wpisuję klucz tam, albo pomijam scenę: wystarczy zdanie ze slajdu 10.
-
-## 10. Blok C, slajdy 11–14 (~2,5 min)
+## 9. Blok C, slajdy 11–14 (~2,5 min)
 
 **Mówię:**
 
-- Slajd 11 „Demo shortcuts vs production” (0:45): teraz, po demo, skróty, na które poszliśmy świadomie: http zamiast HTTPS (specyfikacja: Authorization Server MUSI używać HTTPS); REST otwarty, bo to inny adapter i chroni się go osobno; klienci (`vscode`, `mcp-inspector`) zarejestrowani w Keycloak z góry, publiczny serwer potrzebowałby DCR albo CIMD; dane w pamięci.
+- Slajd 11 „Demo shortcuts vs production” (0:45): teraz, po demo, skróty, na które poszliśmy świadomie: http zamiast HTTPS (specyfikacja: Authorization Server MUSI używać HTTPS); REST otwarty, bo to inny adapter i chroni się go osobno; klienci (`vscode`, `mcp-inspector`) zarejestrowani w Keycloak z góry, publiczny serwer potrzebowałby CIMD (DCR jest deprecated); dane w pamięci.
 - Slajd 12 „Why MCP?” (1:00): **odpowiadam na pytanie ze slajdu 2**: tak, Copilot może `curl`-ować API. MCP dodaje: discovery (schematy i opisy, scena 2), wyselekcjonowaną powierzchnię z zatwierdzaniem per narzędzie (scena 4), standardowe auth z tożsamością i rolami (scena 6), interfejs w kształcie zadania (scena 3: mniej wywołań, mniej kontekstu, czytelne błędy domeny), przenośność między klientami. Ustępstwo: wrapper 1:1 jak `get_drivers` dodaje niewiele. Skills + scripts: inne warstwy; MCP, gdy potrzebna tożsamość, dostęp współdzielony albo zdalny.
-- Slajd 13 „What's next” (0:30): prompts (trzeci prymityw serwera); prymitywy klienta: sampling, elicitation, roots; DCR / CIMD dla klientów, których serwer nie zna z góry.
+- Slajd 13 „What's next” (0:30): trzy rzeczy, każda z przykładem z naszej domeny. **Prompts** (trzeci prymityw serwera, wybiera go użytkownik): np. komenda `/plan-tomorrow`. **Elicitation** (serwer w trakcie wywołania pyta użytkownika o brakującą informację): np. `dispatch_order` dla ORD-106 widzi dwie wolne naczepy Curtainsider i pyta „TRL-01 czy TRL-02?”. **CIMD** zamiast klientów zarejestrowanych z góry: client ID to URL do metadanych klienta, więc Keycloak przyjmie klienta, którego nigdy nie widział (DCR, starszy sposób, jest deprecated). Ostatnia linijka: w specyfikacji 2026-07-28 Sampling i Roots są deprecated. Pytania o nie: [`cheatsheet.md`, What's next](cheatsheet.md#whats-next).
 - Slajd 14 „Resources” (0:15): repo Topicu, **`prompts.md`** — każdy prompt z demo po kolei, do samodzielnego powtórzenia; specyfikacja MCP, C# SDK, Aspire, talk J. Towera. Przechodzę do Q&A.
 
 **Klikam / wpisuję:** z powrotem do przeglądarki ze slajdami, slajdy 11–14.
 
 **Fallback:** brak czasu → slajd 11 pomijam (jedno zdanie: „demo ma świadome skróty, lista w slajdach”), slajd 12 zostaje zawsze.
 
-## 11. Przygotowanie do Q&A
+## 10. Przygotowanie do Q&A
 
 - **Q:** Czemu nie skill + skrypt zamiast MCP? **A:** Otwieram ukryty slajd A1 „A1. MCP vs skills + scripts”: `slides.html?showHiddenSlides=true#/a1`. Najpierw ustępuję w kwestii tokenów: skills ładują z góry tylko nazwę i opis, klient MCP ładuje definicje wszystkich narzędzi w każdej turze (Anthropic proponuje „code execution with MCP”: 150k → 2k tokenów w ich przykładzie, kosztem sandboxa). Potem: inne warstwy — skill to wiedza i procedura, MCP to dostęp do systemu; skrypt i tak woła REST. Skill + skrypt przegrywa na tożsamości (bob vs alice), dystrybucji (skrypt na każdej maszynie vs serwer wdrożony raz) i zatwierdzaniu (komenda shella vs `dispatch_order`). Uczciwie: przenośność to dziś słabszy argument, Agent Skills to otwarty standard. Reguła: lokalnie, jeden użytkownik, liczy się budżet tokenów → skill + skrypt; współdzielone, zdalne, wielu użytkowników, tożsamość i role → MCP. Często oba.
+- **Q:** Czemu nie zwykły klucz API? **A:** Da się: profil `ApiKey` jest w repo (README, „Auth modes”), nagłówek `X-Api-Key`. Ale klucz to wspólny sekret: brak tożsamości (każdy dispatch to `api-key`, nie alice), brak ról, brak discovery (klucz trzeba ręcznie wkleić w każdym kliencie) i brak audience. Pasuje do service-to-service albo wewnętrznego narzędzia; gdy serwer MCP jest współdzielony i zdalny, a liczy się, kto co zrobił → OAuth.
+- **Q:** Jak zbudowany jest projekt / gdzie czego szukać? **A:** Otwieram ukryty slajd A2 „A2. Project architecture”: `slides.html?showHiddenSlides=true#/a2`. Jedno zdanie: dwa adaptery (REST i MCP) nad jedną czystą domeną F# i jednym magazynem w pamięci, w jednym procesie; AppHost Aspire uruchamia API i (w `OAuth`) Keycloak. Mapa plików: [`cheatsheet.md`, Project architecture](cheatsheet.md#project-architecture).
 - **Q:** Czemu model nie może po prostu wołać REST? **A:** Może (slajd 2). MCP dodaje discovery, wyselekcjonowaną i zatwierdzaną powierzchnię, standardowe auth z PRM i rolami, interfejs w kształcie zadania i przenośność. Ustępstwo: wrapper 1:1 nad REST (`get_drivers`) daje mało, scena 3 to pokazała.
 - **Q:** Jak by to wyglądało z Entra ID? **A:** Protokół ten sam, inna konfiguracja (szczegóły w zwiniętej sekcji ticketu o auth, #11): issuer `https://login.microsoftonline.com/<tid>/v2.0`; `requestedAccessTokenVersion = 2`; App ID URI = dokładnie URL MCP, bez końcowego slasha; w tokenie v2 `aud` = GUID aplikacji API; `scopes_supported` jako pełne URI; płaski claim `roles` natywnie; tylko OIDC discovery (bez RFC 8414), brak `code_challenge_methods_supported`; brak DCR/CIMD; klient VS Code (`aebc6443-996d-45c2-90f0-388ff96faa56`) pre-autoryzowany w „Expose an API”.
 - **Q:** Co dostaje bob, gdy wywoła `dispatch_order` po nazwie? **A:** Błąd JSON-RPC `-32600` „Access forbidden: This tool requires authorization.” Filtry autoryzacji SDK (`AddAuthorizationFilters`) ukrywają narzędzie w `tools/list` i blokują wywołanie.
